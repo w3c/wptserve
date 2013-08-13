@@ -1,6 +1,9 @@
 import os
 import logging
+import pipes
+import urlparse
 
+from pipes import Pipeline
 from constants import content_types
 
 logger = logging.getLogger(__name__)
@@ -11,7 +14,7 @@ class HTTPException(Exception):
         self.code = code
 
 def filesystem_path(request):
-    path = request.path
+    path = request.urlparts.path
     if path.startswith("/"):
         path = path[1:]
 
@@ -33,18 +36,11 @@ class MozBaseHandler(object):
 
     def __call__(self, request, response):
         status_code, headers, data = self.handler(request, response)
-        response.write_response_line(status_code)
+        response.status = status_code
+        response.headers = headers
+        response.content = data
 
-        if hasattr(headers, "iteritems"):
-            headers_iter = headers.iteritems()
-        else:
-            headers_iter = headers
-
-        for key, value in headers_iter:
-            response.write_header(key, value)
-        response.end_headers()
-
-        response.write_content(data)
+        return response
 
 #tobie has the idea that it should be possible to pass file responses through
 #arbitary middleware, identified through the query string, something like
@@ -57,15 +53,23 @@ class MozBaseHandler(object):
 #collect the first 1000 bytes from the previous step, wait for 3s and send the
 #rest of the content. This seems quite useless but it would be quite surprising
 #if it doesn't work
-
+    
 class FileHandler(object):
     def __call__(self, request, response):
         path = filesystem_path(request)
 
         try:
             data = open(path).read()
-            headers = self.get_headers(path, data)
-            return 200, headers, data
+            response.headers = self.get_headers(path, data)
+            response.content = data
+            print request.urlparts.query
+            query = urlparse.parse_qs(request.urlparts.query)
+            if "pipe" in query:
+                pipeline = Pipeline(query["pipe"][-1])
+                response.contet = pipeline(response)       
+                
+            return response
+
         except IOError:
             raise HTTPException(404)
 
@@ -82,13 +86,12 @@ class FileHandler(object):
         return [("Content-Type", guess_content_type(path))]
 
 
-file_handler = MozBaseHandler(FileHandler())
+file_handler = FileHandler()
 
 def as_is_handler(request, response):
     path = filesystem_path(request)
 
     try:
-        data = open(path)
-        response.write_content(data.read())
+        response.writer.write(open(path).read())
     except IOError:
         raise HTTPException(404)
