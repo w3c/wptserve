@@ -19,7 +19,7 @@ logger = logging.getLogger(__name__)
 class Router(object):
     def __init__(self, doc_root, routes):
         self.doc_root = doc_root
-        self.routes = defaultdict(list)
+        self.routes = []
         for route in reversed(routes):
             self.register(*route)
 
@@ -27,13 +27,15 @@ class Router(object):
         if type(methods) in types.StringTypes:
             methods = [methods]
         for method in methods:
-            self.routes[method].append((re.compile(path_regexp), handler))
+            self.routes.append((method, re.compile(path_regexp), handler))
 
     def get_handler(self, request):
-        routes = self.routes[request.method]
-        for regexp, handler in reversed(routes):
-            if regexp.match(request.path):
-                return handler
+        for method, regexp, handler in reversed(self.routes):
+            if (request.method == method or
+                method == "*" or
+                (request.method == "GET" and method == "HEAD")):
+                if regexp.match(request.path):
+                    return handler
         logger.error("No handler found")
         return None
 
@@ -109,8 +111,9 @@ class Response(object):
         for item in self.headers:
             self.writer.write_header(*item)
         self.writer.end_headers()
-        for item in self.iter_content():
-            self.writer.write_content(item)
+        if self.request.method != "HEAD":
+            for item in self.iter_content():
+                self.writer.write_content(item)
 
     def set_error(self, code, message=""):
         data = json.dumps({"error":{"code":code,
@@ -207,7 +210,8 @@ class WebTestRequestHandler(BaseHTTPServer.BaseHTTPRequestHandler):
                     msg = traceback.format_exc()
                     sys.stderr.write(msg + "\n")
                     response.set_error(500, message=msg)
-            response.write()
+            if not response.writer.content_written:
+                response.write()
 
         except socket.timeout, e:
             self.log_error("Request timed out: %r", e)

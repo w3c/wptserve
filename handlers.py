@@ -62,11 +62,10 @@ class FileHandler(object):
             data = open(path).read()
             response.headers = self.get_headers(path, data)
             response.content = data
-            print request.urlparts.query
             query = urlparse.parse_qs(request.urlparts.query)
             if "pipe" in query:
                 pipeline = Pipeline(query["pipe"][-1])
-                response.contet = pipeline(response)       
+                response = pipeline(response)
                 
             return response
 
@@ -87,6 +86,32 @@ class FileHandler(object):
 
 
 file_handler = FileHandler()
+
+def python_handler(request, response):
+    path = filesystem_path(request)
+    
+    try:
+        environ = {}
+        execfile(path, environ, environ)
+        if "main" in environ:
+            rv = environ["main"](request, response)
+            if rv is not None:
+                if isinstance(rv, tuple):
+                    if len(rv) == 3:
+                        status, headers, content = rv
+                        response.status = status
+                    elif len(rv) == 2:
+                        headers, content = rv
+                    else:
+                        raise HTTPException(500)
+                    response.headers = headers
+                else:
+                    content = rv
+                response.content = content
+        else:
+            raise HTTPException(500)
+    except IOError:
+        raise HTTPException(404)
 
 def as_is_handler(request, response):
     path = filesystem_path(request)
