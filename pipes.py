@@ -1,7 +1,10 @@
 import types
 
 def resolve_content(response):
-    return "".join(item for item in response.iter_content())
+    rv = "".join(item for item in response.iter_content())
+    if type(rv) == unicode:
+        rv = rv.encode(response.encoding)
+    return rv
 
 class Pipeline(object):
     pipes = {}
@@ -134,11 +137,18 @@ def nullable(func):
 
 @pipe(int)
 def status(response, code):
+    """Alter the status code.
+
+    :param code: Status code to use for the response."""
     response.status = code
     return response
 
 @pipe(str, str)
 def header(response, name, value):
+    """Set a HTTP header.
+
+    :param name: Name of the header to set.
+    :param value: Value to use for the header."""
     name_lower = name.lower()
     headers = [item for item in response.headers if item[0].lower() != name_lower]
     headers.append((name, value))
@@ -147,6 +157,16 @@ def header(response, name, value):
 
 @pipe(str)
 def trickle(response, delays):
+    """Send the response in parts, with time delays.
+
+    :param delays: A string of delays and amounts, in bytes, of the
+                   response to send. Each component is seperated by
+                   a colon. Amounts in bytes are plain integers, whilst
+                   delays are floats prefixed with a single d e.g. 
+                   d1:100:d2
+                   Would cause a 1 second delay, would then send 100 bytes
+                   of the file, and then cause a 2 second delay, before sending
+                   the remainder of the file."""
     import time
     def parse_delays():
         parts = delays.split(":")
@@ -191,6 +211,15 @@ def trickle(response, delays):
 
 @pipe(nullable(int), opt(nullable(int)))
 def slice(response, start, end=None):
+    """Send a byte range of the response body
+
+    :param start: The starting offset. Follows python semantics including
+                  negative numbers.
+    
+    :param end: The ending offset, again with python semantics and None
+                (spelled "null" in a query string) to indicate the end of
+                the file.
+    """
     content = resolve_content(response)
     response.content = content[start:end]
     return response
