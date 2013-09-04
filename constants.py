@@ -1,10 +1,12 @@
 import utils
 
 content_types = utils.invert_dict({"text/html": ["htm", "html"],
-                                   "application/xhtml+xml": ["xht", "xhtml"],
+                                   "application/xhtml+xml": ["xht", "xhtm", "xhtml"],
                                    "text/javascript": ["js"],
                                    "text/css": ["css"],
-                                   "text/plain": ["txt", "md"]})
+                                   "text/plain": ["txt", "md"],
+                                   "text/xml": ["xml"],
+                                   "image/svg+xml": ["svg"]})
 
 response_codes = {
     100: ('Continue', 'Request received, please continue'),
