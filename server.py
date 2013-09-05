@@ -67,7 +67,7 @@ class Router(object):
         return None
 
 #TODO: support SSL
-class WebTestServer(BaseHTTPServer.HTTPServer, ThreadingMixIn):
+class WebTestServer(ThreadingMixIn, BaseHTTPServer.HTTPServer):
     """Server for non-SSL HTTP requests"""
     def __init__(self, router, *args, **kwargs):
         self.router = router
