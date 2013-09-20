@@ -2,6 +2,7 @@ import os
 import logging
 import pipes
 import urlparse
+import cgi
 
 from pipes import Pipeline
 from constants import content_types
@@ -53,13 +54,42 @@ class MozBaseHandler(object):
 #collect the first 1000 bytes from the previous step, wait for 3s and send the
 #rest of the content. This seems quite useless but it would be quite surprising
 #if it doesn't work
-    
+
+class DirectoryHandler(object):
+    def __call__(self, request, response):
+        path = filesystem_path(request)
+
+        assert os.path.isdir(path)
+        
+        response.headers = [("Content-Type", "html")]
+        response.content = """<!doctype html>
+<h1>%(path)s</h1>
+<ul>
+%(items)s
+</li>
+""" % {"path": cgi.escape(request.path), "items": "\n".join(self.list_items(request, path))}
+
+    def list_items(self, request, path):
+        base_path = request.path
+        if not base_path.endswith("/"):
+            base_path += "/"
+        if base_path != "/":
+            link = urlparse.urljoin(base_path, "..")
+            yield """<li><a href="%(link)s">%(name)s</a>""" % {"link":link, "name": ".."}
+        for item in sorted(os.listdir(path)):
+            link = cgi.escape(base_path + item)
+            yield """<li><a href="%(link)s">%(name)s</a>""" % {"link":link, "name": cgi.escape(item)}
+
 class FileHandler(object):
     def __call__(self, request, response):
         path = filesystem_path(request)
 
+        if os.path.isdir(path):
+            return directory_handler(request, response)
+
         try:
-            data = open(path).read()
+            with open(path) as f:
+                data = f.read()
             response.headers = self.get_headers(path, data)
             response.content = data
             query = urlparse.parse_qs(request.urlparts.query)
@@ -84,7 +114,7 @@ class FileHandler(object):
     def default_headers(self, path):
         return [("Content-Type", guess_content_type(path))]
 
-
+directory_handler = DirectoryHandler()
 file_handler = FileHandler()
 
 def python_handler(request, response):
