@@ -119,8 +119,31 @@ class Request(object):
 
         self.urlparts = urlparse.urlsplit(self.path)
 
+        self._GET = None
+
     def __repr__(self):
         return "<Request %s %s>" % (self.method, self.path)
+
+    @property
+    def GET(self):
+        if self._GET is None:
+            self._GET = Params(urlparse.parse_qs(self.urlparts.query))
+        return self._GET
+
+class Params(dict):
+    def __init__(self, data):
+        for key, value in data.iteritems():
+            if type(value) in types.StringTypes:
+                value = [value]
+            dict.__setitem__(self, key, value)
+
+    def __setitem__(self, name, value):
+        raise Exception
+
+    def first(self, key):
+        if key in self and self[key]:
+            return self[key][0]
+        raise KeyError
 
 class Response(object):
     """Object representing the response to a HTTP request
@@ -177,7 +200,7 @@ class Response(object):
 
         self._status = (200, None)
         self.headers = []
-        self._content = []
+        self.content = []
 
     @property
     def status(self):
@@ -208,12 +231,15 @@ class Response(object):
                     value = item
                 if value:
                     yield value
-            
-    def write(self):
+
+    def write_status_headers(self):
         self.writer.write_status(*self.status)
         for item in self.headers:
             self.writer.write_header(*item)
         self.writer.end_headers()
+
+    def write(self):
+        self.write_status_headers()
         if self.request.method != "HEAD":
             for item in self.iter_content():
                 self.writer.write_content(item)
@@ -224,7 +250,7 @@ class Response(object):
         self.status = code
         self.headers = [("Content-Type", "text/json"),
                         ("Content-Length", len(data))]
-        self.content = data
+        self.content = data        
 
 
 class ResponseWriter(object):
