@@ -25,7 +25,7 @@ class Router(object):
                    (method, path_regexp_string, handler_function), defined
                    as for register()
     """
-    
+
     def __init__(self, doc_root, routes):
         self.doc_root = doc_root
         self.routes = []
@@ -35,13 +35,13 @@ class Router(object):
     def register(self, methods, path_regexp, handler):
         """Register a handler for a set of paths.
 
-        :param methods: Set of methods this should match. "*" is a 
+        :param methods: Set of methods this should match. "*" is a
                         special value indicating that all methods should
                         be matched.
 
         :param path_regexp: String that can be compiled into a regexp that
                             is matched against the request path.
-        
+
         :param handler: Function that will be called to process matching
                         requests. This must take two parameters, the request
                         object and the response object.
@@ -71,6 +71,12 @@ class WebTestServer(ThreadingMixIn, BaseHTTPServer.HTTPServer):
     """Server for non-SSL HTTP requests"""
     def __init__(self, router, *args, **kwargs):
         self.router = router
+        if "config" in kwargs:
+            Request.server_config = kwargs.pop("config")
+        else:
+            Request.server_config = {"host":args[0][0],
+                                     "domains":{"": args[0][0]},
+                                     "ports":{"http":[args[0][1]]}}
         #super doesn't work here because BaseHTTPServer.HTTPServer is old-style
         BaseHTTPServer.HTTPServer.__init__(self, *args, **kwargs)
 
@@ -81,7 +87,7 @@ class Request(object):
     :param handler: The RequestHandler being used for this request
 
     .. attribute:: doc_root
-    
+
     The local directory to use as a base when resolving paths
 
     .. attribute:: protocol_version
@@ -97,7 +103,7 @@ class Request(object):
     Raw request path.
 
     .. attribute:: headers
-    
+
     List of request headers.
 
     ..attribute:: raw
@@ -108,6 +114,9 @@ class Request(object):
 
     Parts of the requested URL as obtained by urlparse.urlsplit(path)
     """
+
+    server_config = None
+
     def __init__(self, handler):
         self.doc_root = handler.server.router.doc_root
         handler.parse_request()
@@ -161,7 +170,7 @@ class Response(object):
 
     .. attribute:: add_required_headers
 
-       Boolean indicating whether mandatory headers should be added to the 
+       Boolean indicating whether mandatory headers should be added to the
        response.
 
     .. attribute:: explicit_flush
@@ -250,12 +259,12 @@ class Response(object):
         self.status = code
         self.headers = [("Content-Type", "text/json"),
                         ("Content-Length", len(data))]
-        self.content = data        
+        self.content = data
 
 
 class ResponseWriter(object):
     """Object providing an API to write out a HTTP response.
-    
+
     :param handler: The RequestHandler being used.
     :param response: The Response associated with this writer.
 
@@ -286,7 +295,7 @@ class ResponseWriter(object):
 
     def write_header(self, name, value):
         """Write out a single header for the response.
-        
+
         :param name: Name of the header field
         :param value: Value of the header field
         """
@@ -337,7 +346,7 @@ class ResponseWriter(object):
     def flush(self):
         """Flush the output."""
         self._wfile.flush()
-    
+
 
 class WebTestRequestHandler(BaseHTTPServer.BaseHTTPRequestHandler):
     """RequestHandler for WebTestHttpd"""
@@ -398,7 +407,7 @@ class WebTestHttpd(object):
     :param handler_cls: Class to use for the RequestHandler
     :param use_ssl: Use a SSL server if no explicit server_cls is supplied
 
-    HTTP server designed for testing scenarios. 
+    HTTP server designed for testing scenarios.
 
     Takes a router class which provides one method get_handler which takes a Request
     and returns a handler function."
@@ -439,7 +448,6 @@ class WebTestHttpd(object):
         If the server is not running, this method has no effect.
         """
         if self.httpd:
-            ### FIXME: There is no shutdown() method in Python 2.4...
             try:
                 self.httpd.shutdown()
             except AttributeError:

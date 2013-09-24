@@ -28,7 +28,7 @@ def guess_content_type(path):
     ext = os.path.splitext(path)[1].lstrip(".")
     if ext in content_types:
         return content_types[ext]
-        
+
     return "application/octet-stream"
 
 class MozBaseHandler(object):
@@ -47,10 +47,10 @@ class MozBaseHandler(object):
 #arbitary middleware, identified through the query string, something like
 # GET /foo/bar?pipe=delay("10,1d,100,1d")|status(200)
 #If this turns out to be useful, it needs to be supported somehow by making
-#each piped thing a function that is composed and applied to the response 
+#each piped thing a function that is composed and applied to the response
 #just before it is sent. For example consider
 #GET /foo/bar?pipe=delay("10,1d,100,2d")|delay("1000,3d")
-#this should send 100 bytes, wait for 1s, send 100 bytes wait for 2s, then 
+#this should send 100 bytes, wait for 1s, send 100 bytes wait for 2s, then
 #collect the first 1000 bytes from the previous step, wait for 3s and send the
 #rest of the content. This seems quite useless but it would be quite surprising
 #if it doesn't work
@@ -60,7 +60,7 @@ class DirectoryHandler(object):
         path = filesystem_path(request)
 
         assert os.path.isdir(path)
-        
+
         response.headers = [("Content-Type", "html")]
         response.content = """<!doctype html>
 <h1>%(path)s</h1>
@@ -95,8 +95,8 @@ class FileHandler(object):
             query = urlparse.parse_qs(request.urlparts.query)
             if "pipe" in query:
                 pipeline = Pipeline(query["pipe"][-1])
-                response = pipeline(response)
-                
+                response = pipeline(request, response)
+
             return response
 
         except IOError:
@@ -119,7 +119,7 @@ file_handler = FileHandler()
 
 def python_handler(request, response):
     path = filesystem_path(request)
-    
+
     try:
         environ = {}
         execfile(path, environ, environ)
@@ -150,3 +150,10 @@ def as_is_handler(request, response):
         response.writer.write(open(path).read())
     except IOError:
         raise HTTPException(404)
+
+class ErrorHandler(object):
+    def __init__(self, status):
+        self.status = status
+
+    def __call__(self, request, response):
+        response.set_error(self.status)

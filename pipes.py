@@ -1,4 +1,6 @@
+import sys
 import types
+import re
 
 def resolve_content(response):
     rv = "".join(item for item in response.iter_content())
@@ -23,16 +25,16 @@ class Pipeline(object):
                 functions[-1][1].append(item[1])
         return functions
 
-    def __call__(self, response):
+    def __call__(self, request, response):
         for func, args in self.pipe_functions:
-            response = func(response, *args)
+            response = func(request, response, *args)
         return response
 
 class PipeTokenizer(object):
     def __init__(self):
         #This whole class can likely be replaced by some regexps
         self.state = None
-   
+
     def tokenize(self, string):
         self.string = string
         self.state = self.func_name_state
@@ -111,11 +113,12 @@ class pipe(object):
                     raise ValueError("Non-optional argument cannot follow optional argument")
 
     def __call__(self, f):
-        def inner(response, *args):
+        def inner(request, response, *args):
             if not (self.min_args <= len(args) <= self.max_args):
-                raise ValueError
+                print args
+                raise ValueError, "Expected between %d and %d args, got %d" % (self.min_args, self.max_args, len(args))
             arg_values = tuple(f(x) for f,x in zip(self.arg_converters, args))
-            return f(response, *arg_values)
+            return f(request, response, *arg_values)
         Pipeline.pipes[f.__name__] = inner
         #We actually want the undecorated function in the main namespace
         return f
@@ -126,7 +129,7 @@ class opt(object):
 
     def __call__(self, arg):
         return self.f(arg)
-    
+
 def nullable(func):
     def inner(arg):
         if arg.lower() == "null":
@@ -136,7 +139,7 @@ def nullable(func):
     return inner
 
 @pipe(int)
-def status(response, code):
+def status(request, response, code):
     """Alter the status code.
 
     :param code: Status code to use for the response."""
@@ -144,7 +147,7 @@ def status(response, code):
     return response
 
 @pipe(str, str)
-def header(response, name, value):
+def header(request, response, name, value):
     """Set a HTTP header.
 
     :param name: Name of the header to set.
@@ -156,13 +159,13 @@ def header(response, name, value):
     return response
 
 @pipe(str)
-def trickle(response, delays):
+def trickle(request, response, delays):
     """Send the response in parts, with time delays.
 
     :param delays: A string of delays and amounts, in bytes, of the
                    response to send. Each component is seperated by
                    a colon. Amounts in bytes are plain integers, whilst
-                   delays are floats prefixed with a single d e.g. 
+                   delays are floats prefixed with a single d e.g.
                    d1:100:d2
                    Would cause a 1 second delay, would then send 100 bytes
                    of the file, and then cause a 2 second delay, before sending
@@ -210,16 +213,66 @@ def trickle(response, delays):
     return response
 
 @pipe(nullable(int), opt(nullable(int)))
-def slice(response, start, end=None):
+def slice(request, response, start, end=None):
     """Send a byte range of the response body
 
     :param start: The starting offset. Follows python semantics including
                   negative numbers.
-    
+
     :param end: The ending offset, again with python semantics and None
                 (spelled "null" in a query string) to indicate the end of
                 the file.
     """
     content = resolve_content(response)
     response.content = content[start:end]
+    return response
+
+class ReplacementTokenizer(object):
+    def ident(scanner, token):
+        return ("ident", token)
+
+    def index(scanner, token):
+        token = token[1:-1]
+        try:
+            token = int(token)
+        except:
+            pass
+        return ("index", token)
+
+    def tokenize(self, string):
+        return self.scanner.scan(string)[0]
+
+    scanner = re.Scanner([(r"\w+", ident),
+                          (r"\[\w*\]", index)])
+
+@pipe()
+def config(request, response):
+    #TODO: There basically isn't any error handling here
+    content = resolve_content(response)
+    tokenizer = ReplacementTokenizer()
+
+    def config_replacement(match):
+        content, = match.groups()
+
+        tokens = tokenizer.tokenize(content)
+
+        assert tokens[0][0] == "ident" and all(item[0] == "index" for item in tokens[1:]), tokens
+
+        value = request.server_config[tokens[0][1]]
+        for item in tokens[1:]:
+            value = value[item[1]]
+
+        assert isinstance(value, (int,) + types.StringTypes)
+
+        return unicode(value)
+
+    template_regexp = re.compile(r"{{([^}]*)}}")
+    try:
+        new_content, count = template_regexp.subn(config_replacement, content)
+    except Exception as e:
+        raise
+        response.set_error(500)
+        return
+
+    response.content = new_content
     return response
