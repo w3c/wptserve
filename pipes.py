@@ -1,6 +1,7 @@
 import sys
 import types
 import re
+from cgi import escape
 
 def resolve_content(response):
     rv = "".join(item for item in response.iter_content())
@@ -245,8 +246,29 @@ class ReplacementTokenizer(object):
     scanner = re.Scanner([(r"\w+", ident),
                           (r"\[\w*\]", index)])
 
+class FirstWrapper(object):
+    def __init__(self, params):
+        self.params = params
+
+    def __getitem__(self, key):
+        return self.params.first(key)
+
 @pipe()
-def config(request, response):
+def sub(request, response):
+    """Substitute configuration information about the server into the script.
+
+    The format is a very limited template language. Substitutions are enclosed
+    by {{ and }}. There are 3 fields "host", "domains" and "ports". "host" is
+    just a simple string value and represents the primary host from which the
+    tests are being run. "domains" is a dictionary of avaliable domains indexed
+    by subdomain name. "ports" is a dictionary of lists of ports indexed by
+    protocol. So for example in a setup running on localhost with a www subdomain
+    and a http server on ports 80 and 81:
+
+    {{host}} => localhost
+    {{domains[www]}} => www.localhost
+    {{ports[http][1]}} => 81
+    """
     #TODO: There basically isn't any error handling here
     content = resolve_content(response)
     tokenizer = ReplacementTokenizer()
@@ -258,13 +280,23 @@ def config(request, response):
 
         assert tokens[0][0] == "ident" and all(item[0] == "index" for item in tokens[1:]), tokens
 
-        value = request.server_config[tokens[0][1]]
+        field = tokens[0][1]
+        if field == "headers":
+            value = request.headers
+        elif field == "GET":
+            value = FirstWrapper(request.GET)
+        elif field in request.server_config:
+            value = request.server_config
+        else:
+            raise Exception("Invalid field")
+
         for item in tokens[1:]:
             value = value[item[1]]
 
         assert isinstance(value, (int,) + types.StringTypes)
 
-        return unicode(value)
+        #Should possibly support escaping for other contexts e.g. script
+        return escape(unicode(value))
 
     template_regexp = re.compile(r"{{([^}]*)}}")
     try:
