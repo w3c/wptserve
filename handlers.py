@@ -38,7 +38,7 @@ class MozBaseHandler(object):
     def __call__(self, request, response):
         status_code, headers, data = self.handler(request, response)
         response.status = status_code
-        response.headers = headers
+        response.headers.update(headers)
         response.content = data
 
         return response
@@ -90,7 +90,7 @@ class FileHandler(object):
         try:
             with open(path) as f:
                 data = f.read()
-            response.headers = self.get_headers(path, data)
+            response.headers.update(self.get_headers(path, data))
             response.content = data
             query = urlparse.parse_qs(request.urlparts.query)
             if "pipe" in query:
@@ -134,7 +134,7 @@ def python_handler(request, response):
                         headers, content = rv
                     else:
                         raise HTTPException(500)
-                    response.headers = headers
+                    response.headers.update(headers)
                 else:
                     content = rv
                 response.content = content
