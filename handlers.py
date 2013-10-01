@@ -63,7 +63,7 @@ class DirectoryHandler(object):
 
         assert os.path.isdir(path)
 
-        response.headers = [("Content-Type", "html")]
+        response.headers = [("Content-Type", "text/html")]
         response.content = """<!doctype html>
 <h1>%(path)s</h1>
 <ul>
