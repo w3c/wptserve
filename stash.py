@@ -24,7 +24,6 @@ class Stash(object):
             path = self.default_path
 
         value = self.data[path][key]
-        del self.data[path][key]
         return value
 
 
