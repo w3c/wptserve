@@ -7,9 +7,10 @@ import threading
 import re
 import types
 import logging
+import ssl
 
 import handlers
-from request import Request
+from request import Server, Request
 from response import Response
 
 logger = logging.getLogger(__name__)
@@ -68,14 +69,24 @@ class WebTestServer(ThreadingMixIn, BaseHTTPServer.HTTPServer):
     """Server for non-SSL HTTP requests"""
     def __init__(self, router, *args, **kwargs):
         self.router = router
+
+        use_ssl = kwargs.pop("use_ssl")
+        certificate = kwargs.pop("certificate")
+
         if "config" in kwargs:
-            Request.server_config = kwargs.pop("config")
+            Server.config = kwargs.pop("config")
         else:
-            Request.server_config = {"host":args[0][0],
-                                     "domains":{"": args[0][0]},
-                                     "ports":{"http":[args[0][1]]}}
+            Server.config = {"host":args[0][0],
+                             "domains":{"": args[0][0]},
+                             "ports":{"http":[args[0][1]]}}
+
         #super doesn't work here because BaseHTTPServer.HTTPServer is old-style
         BaseHTTPServer.HTTPServer.__init__(self, *args, **kwargs)
+
+        if use_ssl:
+            self.socket = ssl.wrap_socket(self.socket,
+                                          certfile=certificate,
+                                          server_side=True)
 
 
 class WebTestRequestHandler(BaseHTTPServer.BaseHTTPRequestHandler):
@@ -125,6 +136,7 @@ class WebTestRequestHandler(BaseHTTPServer.BaseHTTPRequestHandler):
                 self.request_version = ''
                 self.command = ''
                 return False
+        print self.raw_requestline
         if not self.raw_requestline:
             self.close_connection = 1
         return True
@@ -146,7 +158,7 @@ class WebTestHttpd(object):
     """
     def __init__(self, router, host="127.0.0.1", port=8000,
                  server_cls=None, handler_cls=WebTestRequestHandler,
-                 use_ssl=False):
+                 use_ssl=False, certificate=None):
 
         self.router = router
 
@@ -154,12 +166,13 @@ class WebTestHttpd(object):
         self.port = port
 
         if server_cls is None:
-            if not use_ssl:
-                server_cls = WebTestServer
-            else:
-                raise NotImplementedError
+            server_cls = WebTestServer
 
-        self.httpd = server_cls(router, (self.host, self.port), handler_cls)
+        if use_ssl is not None:
+            assert certificate is not None and os.path.exists(certificate)
+
+        self.httpd = server_cls(router, (self.host, self.port), handler_cls,
+                                use_ssl=use_ssl, certificate=certificate)
 
     def start(self, block=True):
         """Start the server.

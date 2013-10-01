@@ -237,14 +237,14 @@ class ReplacementTokenizer(object):
         try:
             token = int(token)
         except:
-            pass
+            token = unicode(token)
         return ("index", token)
 
     def tokenize(self, string):
         return self.scanner.scan(string)[0]
 
     scanner = re.Scanner([(r"\w+", ident),
-                          (r"\[\w*\]", index)])
+                          (r"\[[^\]]*\]", index)])
 
 class FirstWrapper(object):
     def __init__(self, params):
@@ -281,19 +281,23 @@ def sub(request, response):
         assert tokens[0][0] == "ident" and all(item[0] == "index" for item in tokens[1:]), tokens
 
         field = tokens[0][1]
+
+        print tokens
+
         if field == "headers":
             value = request.headers
         elif field == "GET":
             value = FirstWrapper(request.GET)
-        elif field in request.server_config:
-            value = request.server_config
+        elif field in request.server.config:
+            value = request.server.config[tokens[0][1]]
         else:
             raise Exception("Invalid field")
 
         for item in tokens[1:]:
+            print value, item[1]
             value = value[item[1]]
 
-        assert isinstance(value, (int,) + types.StringTypes)
+        assert isinstance(value, (int,) + types.StringTypes), tokens
 
         #Should possibly support escaping for other contexts e.g. script
         return escape(unicode(value))

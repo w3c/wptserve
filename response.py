@@ -1,3 +1,4 @@
+import sys
 import json
 import Cookie
 import types
@@ -81,7 +82,6 @@ class Response(object):
     def set_cookie(self, name, value, max_age=None,
                    path="/", domain=None, secure=False,
                    httponly=False, comment=None, expires=None):
-        print "set cookie", name, value
         #TODO: deal with max age and expires in some sane way
         m = Cookie.Morsel()
         m.set(name, value, value)
@@ -93,10 +93,7 @@ class Response(object):
         m.secure = secure
         m.httponly = httponly
 
-        print m.OutputString()
-
         self.headers.append("Set-Cookie", m.OutputString())
-        print self.headers
 
     def unset_cookie(self, name):
         cookies = self.headers.get("Set-Cookie")
@@ -130,7 +127,6 @@ class Response(object):
                     yield value
 
     def write_status_headers(self):
-        print self.headers
         self.writer.write_status(*self.status)
         for item in self.headers:
             self.writer.write_header(*item)
