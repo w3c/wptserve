@@ -3,6 +3,7 @@ import logging
 import pipes
 import urlparse
 import cgi
+import traceback
 
 from pipes import Pipeline
 from constants import content_types
@@ -11,8 +12,9 @@ logger = logging.getLogger(__name__)
 logger.info("Logging started")
 
 class HTTPException(Exception):
-    def __init__(self, code):
+    def __init__(self, code, message=""):
         self.code = code
+        self.message = message
 
 def filesystem_path(request):
     path = request.urlparts.path
@@ -121,10 +123,14 @@ def python_handler(request, response):
     path = filesystem_path(request)
 
     try:
-        environ = {}
+        environ = {"__file__": path}
         execfile(path, environ, environ)
         if "main" in environ:
-            rv = environ["main"](request, response)
+            try:
+                rv = environ["main"](request, response)
+            except:
+                msg = traceback.format_exc()
+                raise HTTPException(500, message=msg)
             if rv is not None:
                 if isinstance(rv, tuple):
                     if len(rv) == 3:

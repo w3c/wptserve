@@ -61,7 +61,6 @@ class Router(object):
                 (request.method == "GET" and method == "HEAD")):
                 if regexp.match(request.path):
                     return handler
-        logger.error("No handler found")
         return None
 
 #TODO: support SSL
@@ -104,11 +103,13 @@ class WebTestRequestHandler(BaseHTTPServer.BaseHTTPRequestHandler):
                 try:
                     handler(request, response)
                 except handlers.HTTPException as e:
-                    response.set_error(e.code)
-                except:
-                    msg = traceback.format_exc()
-                    sys.stderr.write(msg + "\n")
-                    response.set_error(500, message=msg)
+                    response.set_error(e.code, e.message)
+                except Exception as e:
+                    if e.message:
+                        err = e.message
+                    else:
+                        err = traceback.format_exc()
+                    response.set_error(500, err)
             if not response.writer.content_written:
                 response.write()
 

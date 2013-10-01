@@ -143,11 +143,13 @@ class Response(object):
                 self.writer.write_content(item)
 
     def set_error(self, code, message=""):
-        data = json.dumps({"error":{"code":code,
-                                    "message":message}})
+        err ={"code":code,
+              "message":message}
+        data = json.dumps({"error": err})
         self.status = code
         self.headers = [("Content-Type", "text/json"),
                         ("Content-Length", len(data))]
+        print >> sys.stderr, "Error %i\n%s" % (err["code"], err["message"])
         self.content = data
 
 class ResponseHeaders(object):
