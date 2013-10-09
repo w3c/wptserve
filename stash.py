@@ -23,7 +23,10 @@ class Stash(object):
         if path is None:
             path = self.default_path
 
-        value = self.data[path][key]
+        if path in self.data:
+            value = self.data[path][key]
+        else:
+            value = None
         return value
 
 
@@ -33,6 +36,8 @@ class PathStash(dict):
 
     def __setitem__(self, key, value):
         key = uuid.UUID(key)
+        if value is None:
+            raise ValueError("Stash value may not be set to None")
         if key in self:
             raise StashError("Tried to overwrite existing stash value for path %s and key %s (old value was %s, new value is %s)" % (self.path, key, self[str(key)], value))
         else:
@@ -40,8 +45,9 @@ class PathStash(dict):
 
     def __getitem__(self, key):
         key = uuid.UUID(key)
-        rv = dict.__getitem__(self, key)
-        del self[key]
+        rv = dict.get(self, key, None)
+        if rv is not None:
+            del self[key]
         return rv
 
 class StashError(Exception):

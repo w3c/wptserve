@@ -17,7 +17,7 @@ class HTTPException(Exception):
         self.message = message
 
 def filesystem_path(request):
-    path = request.urlparts.path
+    path = request.url_parts.path
     if path.startswith("/"):
         path = path[1:]
 
@@ -69,10 +69,10 @@ class DirectoryHandler(object):
 <ul>
 %(items)s
 </li>
-""" % {"path": cgi.escape(request.path), "items": "\n".join(self.list_items(request, path))}
+""" % {"path": cgi.escape(request.url_parts.path), "items": "\n".join(self.list_items(request, path))}
 
     def list_items(self, request, path):
-        base_path = request.path
+        base_path = request.url_parts.path
         if not base_path.endswith("/"):
             base_path += "/"
         if base_path != "/":
@@ -94,7 +94,7 @@ class FileHandler(object):
                 data = f.read()
             response.headers.update(self.get_headers(path, data))
             response.content = data
-            query = urlparse.parse_qs(request.urlparts.query)
+            query = urlparse.parse_qs(request.url_parts.query)
             if "pipe" in query:
                 pipeline = Pipeline(query["pipe"][-1])
                 response = pipeline(request, response)

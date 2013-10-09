@@ -23,7 +23,8 @@ def parse_args():
 def main():
     args = parse_args()
     router = server.Router(args.document_root, routes.routes)
-    httpd = server.WebTestHttpd(router, host=args.host, port=args.port)
+    httpd = server.WebTestHttpd(router, host=args.host, port=args.port,
+                                use_ssl=False, certificate=None)
     httpd.start()
 
 if __name__ == "__main__":

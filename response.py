@@ -65,6 +65,9 @@ class Response(object):
         self.headers = ResponseHeaders()
         self.content = []
 
+        self.headers_written = False
+        self.content_written = False
+
     @property
     def status(self):
         return self._status
@@ -132,11 +135,14 @@ class Response(object):
             self.writer.write_header(*item)
         self.writer.end_headers()
 
-    def write(self):
-        self.write_status_headers()
+    def write_content(self):
         if self.request.method != "HEAD":
             for item in self.iter_content():
                 self.writer.write_content(item)
+
+    def write(self):
+        self.write_status_headers()
+        self.write_content()
 
     def set_error(self, code, message=""):
         err ={"code":code,

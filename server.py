@@ -60,7 +60,7 @@ class Router(object):
             if (request.method == method or
                 method == "*" or
                 (request.method == "GET" and method == "HEAD")):
-                if regexp.match(request.path):
+                if regexp.match(request.url_parts.path):
                     return handler
         return None
 
@@ -72,6 +72,8 @@ class WebTestServer(ThreadingMixIn, BaseHTTPServer.HTTPServer):
 
         use_ssl = kwargs.pop("use_ssl")
         certificate = kwargs.pop("certificate")
+
+        self.scheme = "https" if use_ssl else "http"
 
         if "config" in kwargs:
             Server.config = kwargs.pop("config")
@@ -168,7 +170,7 @@ class WebTestHttpd(object):
         if server_cls is None:
             server_cls = WebTestServer
 
-        if use_ssl is not None:
+        if use_ssl:
             assert certificate is not None and os.path.exists(certificate)
 
         self.httpd = server_cls(router, (self.host, self.port), handler_cls,
