@@ -179,7 +179,12 @@ def trickle(request, response, delays):
             if item.startswith("d"):
                 item_type = "delay"
                 item = item[1:]
-                value=float(item)
+                value = float(item)
+            elif item.startswith("r"):
+                item_type = "repeat"
+                value = int(item[1:])
+                if not value%2 == 0:
+                    raise ValueError
             else:
                 item_type = "bytes"
                 value = int(item)
@@ -188,12 +193,13 @@ def trickle(request, response, delays):
             else:
                 rv.append((item_type, value))
         return rv
+
     delays = parse_delays()
     if not delays:
         return response
     content = resolve_content(response)
     modified_content = []
-    offset = 0
+    offset = [0]
 
     def sleep(seconds):
         def inner():
@@ -201,15 +207,24 @@ def trickle(request, response, delays):
             return ""
         return inner
 
-    for item_type, value in delays:
-        if item_type == "bytes":
-            modified_content.append(content[offset:offset + value])
-            offset += value
-        elif item_type == "delay":
-            modified_content.append(sleep(value))
+    def add_content(delays):
+        for i, (item_type, value) in enumerate(delays):
+            print item_type, value
+            if item_type == "bytes":
+                modified_content.append(content[offset[0]:offset[0] + value])
+                offset[0] += value
+            elif item_type == "delay":
+                modified_content.append(sleep(value))
+            elif item_type == "repeat":
+                assert i == len(delays) - 1
+                while offset[0] < len(content):
+                    add_content(delays[-(value + 1):-1])
 
-    if offset < len(content):
-        modified_content.append(content[offset:])
+        if offset[0] < len(content):
+            modified_content.append(content[offset[0]:])
+
+    add_content(delays)
+
     response.content = modified_content
     return response
 
