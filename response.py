@@ -3,6 +3,7 @@ import json
 import Cookie
 import types
 from collections import OrderedDict
+import uuid
 
 from constants import response_codes
 
@@ -152,7 +153,57 @@ class Response(object):
         self.headers = [("Content-Type", "text/json"),
                         ("Content-Length", len(data))]
         print >> sys.stderr, "Error %i\n%s" % (err["code"], err["message"])
+        if code == 500:
+            raise
         self.content = data
+
+class MultipartContent(object):
+    def __init__(self, boundary=None, default_content_type=None):
+        self.items = []
+        if boundary is None:
+            boundary = str(uuid.uuid4())
+        self.boundary = boundary
+        self.default_content_type = default_content_type
+
+    def __call__(self):
+        boundary = "--" + self.boundary
+        rv = ["", boundary]
+        for item in self.items:
+            rv.append(str(item))
+            rv.append(boundary)
+        rv[-1] += "--"
+        rv.append("")
+        return "\r\n".join(rv)
+
+    def append_part(self, data, content_type=None, headers=None):
+        if content_type is None:
+            content_type = self.default_content_type
+        self.items.append(MultipartPart(data, content_type, headers))
+
+class MultipartPart(object):
+    def __init__(self, data, content_type=None, headers=None):
+        self.headers = ResponseHeaders()
+
+        if content_type is not None:
+            self.headers.set("Content-Type", content_type)
+
+        if headers is not None:
+            for name, value in headers:
+                if name.lower() == "content-type":
+                    func = self.headers.set
+                else:
+                    func = self.headers.append
+                func(name, value)
+
+        self.data = data
+
+    def __str__(self):
+        rv = []
+        for item in self.headers:
+            rv.append("%s: %s" % item)
+        rv.append("")
+        rv.append(self.data)
+        return "\r\n".join(rv)
 
 class ResponseHeaders(object):
     def __init__(self):
