@@ -109,13 +109,20 @@ class FileHandler(object):
             raise HTTPException(404)
 
     def get_headers(self, path):
+        rv = self.default_headers(path)
+        rv.extend(self.load_headers(os.path.join(os.path.split(path)[0], "__dir__")))
+        rv.extend(self.load_headers(path))
+        return rv
+
+    def load_headers(self, path):
         try:
             headers_file = open(path + ".headers")
         except IOError:
-            return self.default_headers(path)
+            return []
         else:
-            headers = [tuple(line.split(":", 1)) for line in headers_file if line]
-        return headers
+            return [tuple(item.strip for item in line.split(":", 1))
+                    for line in headers_file if line]
+
 
     def get_data(self, response, path, byte_ranges):
         with open(path) as f:

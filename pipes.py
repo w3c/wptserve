@@ -315,7 +315,8 @@ def sub(request, response):
         assert isinstance(value, (int,) + types.StringTypes), tokens
 
         #Should possibly support escaping for other contexts e.g. script
-        return escape(unicode(value))
+        #TODO: read the encoding of the response
+        return escape(unicode(value)).encode("utf-8")
 
     template_regexp = re.compile(r"{{([^}]*)}}")
     try:

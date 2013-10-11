@@ -7,7 +7,8 @@ content_types = utils.invert_dict({"text/html": ["htm", "html"],
                                    "text/plain": ["txt", "md"],
                                    "text/xml": ["xml"],
                                    "image/svg+xml": ["svg"],
-                                   "text/event-stream": ["event_stream"]})
+                                   "text/event-stream": ["event_stream"],
+                                   "text/cache-manifest": ["manifest"]})
 
 response_codes = {
     100: ('Continue', 'Request received, please continue'),
