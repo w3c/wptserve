@@ -161,7 +161,6 @@ class Request(object):
 
     def __init__(self, request_handler):
         self.doc_root = request_handler.server.router.doc_root
-        request_handler.parse_request()
         self.protocol_version = request_handler.protocol_version
         self.method = request_handler.command
 

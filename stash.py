@@ -13,7 +13,6 @@ class Stash(object):
     def put(self, key, value, path=None):
         if path is None:
             path = self.default_path
-        print "store", path, key, value
         if path not in self.data:
             self.data[path] = PathStash(path)
 

@@ -4,6 +4,7 @@ import Cookie
 import types
 from collections import OrderedDict
 import uuid
+from datetime import timedelta
 
 from constants import response_codes
 
@@ -87,6 +88,11 @@ class Response(object):
                    path="/", domain=None, secure=False,
                    httponly=False, comment=None, expires=None):
         #TODO: deal with max age and expires in some sane way
+        if value is None:
+            value = ''
+            max_age = 0
+            expires = timedelta(days=-1)
+
         m = Cookie.Morsel()
         m.set(name, value, value)
         m.path = path
@@ -112,7 +118,7 @@ class Response(object):
                     self.headers.append(("Set-Cookie", m.OutputString()))
 
     def delete_cookie(self, name, path="/", domain=None):
-        self.set_cookie(name, "", path=path, domain=domain, max_age=0)
+        self.set_cookie(name, None, path=path, domain=domain, max_age=0)
 
     def iter_content(self):
         """Iterator returning chunks of response body content.
@@ -152,7 +158,6 @@ class Response(object):
         self.status = code
         self.headers = [("Content-Type", "text/json"),
                         ("Content-Length", len(data))]
-        print >> sys.stderr, "Error %i\n%s" % (err["code"], err["message"])
         if code == 500:
             raise
         self.content = data
@@ -269,6 +274,7 @@ class ResponseWriter(object):
         self._headers_seen = set()
         self._headers_complete = False
         self.content_written = False
+        self.request = response.request
 
     def write_status(self, code, message=None):
         """Write out the status line of a response.

@@ -8,8 +8,7 @@ import traceback
 from pipes import Pipeline
 from constants import content_types
 
-logger = logging.getLogger(__name__)
-logger.info("Logging started")
+logger = logging.getLogger("wptserve")
 
 class HTTPException(Exception):
     def __init__(self, code, message=""):
@@ -120,7 +119,7 @@ class FileHandler(object):
         except IOError:
             return []
         else:
-            return [tuple(item.strip for item in line.split(":", 1))
+            return [tuple(item.strip() for item in line.split(":", 1))
                     for line in headers_file if line]
 
 

@@ -2,6 +2,9 @@ import sys
 import types
 import re
 from cgi import escape
+import logging
+
+logger = logging.getLogger("wptserve")
 
 def resolve_content(response):
     rv = "".join(item for item in response.iter_content())
@@ -116,9 +119,9 @@ class pipe(object):
     def __call__(self, f):
         def inner(request, response, *args):
             if not (self.min_args <= len(args) <= self.max_args):
-                print args
                 raise ValueError, "Expected between %d and %d args, got %d" % (self.min_args, self.max_args, len(args))
             arg_values = tuple(f(x) for f,x in zip(self.arg_converters, args))
+            logger.debug("Running pipe %s" % f.__name__)
             return f(request, response, *arg_values)
         Pipeline.pipes[f.__name__] = inner
         #We actually want the undecorated function in the main namespace
@@ -209,7 +212,7 @@ def trickle(request, response, delays):
 
     def add_content(delays):
         for i, (item_type, value) in enumerate(delays):
-            print item_type, value
+            logger.debug("%s, %d" % (type, value))
             if item_type == "bytes":
                 modified_content.append(content[offset[0]:offset[0] + value])
                 offset[0] += value
@@ -297,8 +300,6 @@ def sub(request, response):
 
         field = tokens[0][1]
 
-        print tokens
-
         if field == "headers":
             value = request.headers
         elif field == "GET":
@@ -309,7 +310,6 @@ def sub(request, response):
             raise Exception("Invalid field")
 
         for item in tokens[1:]:
-            print value, item[1]
             value = value[item[1]]
 
         assert isinstance(value, (int,) + types.StringTypes), tokens

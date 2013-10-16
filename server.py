@@ -1,4 +1,5 @@
 import sys
+import os
 import BaseHTTPServer
 from SocketServer import ThreadingMixIn
 import traceback
@@ -8,12 +9,15 @@ import re
 import types
 import logging
 import ssl
+import imp
 
 import handlers
 from request import Server, Request
 from response import Response
+import routes
 
-logger = logging.getLogger(__name__)
+logger = logging.getLogger("wptserve")
+logger.setLevel(logging.DEBUG)
 
 class Router(object):
     """Object for matching handler functions to requests.
@@ -61,14 +65,38 @@ class Router(object):
                 method == "*" or
                 (request.method == "GET" and method == "HEAD")):
                 if regexp.match(request.url_parts.path):
+                    if not hasattr(handler, "__class__"):
+                        name = handler.__name__
+                    else:
+                        name = handler.__class__.__name__
+                    logger.debug("Found handler %s" % name)
                     return handler
         return None
+
+class RequestRewriter(object):
+    def __init__(self, rules):
+        self.rules = {}
+        for rule in reversed(rules):
+            self.register(*rule)
+
+    def register(self, methods, path, destination):
+        if type(methods) in types.StringTypes:
+            methods = [methods]
+        self.rules[path] = (methods, destination)
+
+    def rewrite(self, request_handler):
+        if request_handler.path in self.rules:
+            methods, destination = self.rules[request_handler.path]
+            if "*" in methods or request_handler.command in methods:
+                logger.debug("Rewriting request path %s to %s" % (request_handler.path, destination))
+                request_handler.path = destination
 
 #TODO: support SSL
 class WebTestServer(ThreadingMixIn, BaseHTTPServer.HTTPServer):
     """Server for non-SSL HTTP requests"""
-    def __init__(self, router, *args, **kwargs):
+    def __init__(self, server_address, RequestHandlerClass, router, rewriter, **kwargs):
         self.router = router
+        self.rewriter = rewriter
 
         use_ssl = kwargs.pop("use_ssl")
         certificate = kwargs.pop("certificate")
@@ -78,12 +106,13 @@ class WebTestServer(ThreadingMixIn, BaseHTTPServer.HTTPServer):
         if "config" in kwargs:
             Server.config = kwargs.pop("config")
         else:
-            Server.config = {"host":args[0][0],
-                             "domains":{"": args[0][0]},
-                             "ports":{"http":[args[0][1]]}}
+            logger.debug("Using default configuration")
+            Server.config = {"host":server_address[0],
+                             "domains":{"": server_address[0]},
+                             "ports":{"http":[server_address[1]]}}
 
         #super doesn't work here because BaseHTTPServer.HTTPServer is old-style
-        BaseHTTPServer.HTTPServer.__init__(self, *args, **kwargs)
+        BaseHTTPServer.HTTPServer.__init__(self, server_address, RequestHandlerClass, **kwargs)
 
         if use_ssl:
             self.socket = ssl.wrap_socket(self.socket,
@@ -97,18 +126,27 @@ class WebTestRequestHandler(BaseHTTPServer.BaseHTTPRequestHandler):
     def handle_one_request(self):
         try:
             self.close_connection = False
-            request_is_valid = self.get_request_line()
+            request_line_is_valid = self.get_request_line()
+
             if self.close_connection:
                 return
+
+            request_is_valid = self.parse_request()
+            if not request_is_valid:
+                #parse_request() actually sends its own error responses
+                return
+
+            self.server.rewriter.rewrite(self)
 
             request = Request(self)
             response = Response(self, request)
 
-            if not request_is_valid:
+            if not request_line_is_valid:
                 response.set_error(414)
                 response.write()
                 return
 
+            logger.debug("%s %s" % (request.method, request.request_path))
             handler = self.server.router.get_handler(request)
             if handler is None:
                 response.set_error(404)
@@ -123,6 +161,7 @@ class WebTestRequestHandler(BaseHTTPServer.BaseHTTPRequestHandler):
                     else:
                         err = traceback.format_exc()
                     response.set_error(500, err)
+            logger.info("%i %s %s %i" % (response.status[0], request.method, request.request_path, request.raw_input.length))
             if not response.writer.content_written:
                 response.write()
 
@@ -131,6 +170,10 @@ class WebTestRequestHandler(BaseHTTPServer.BaseHTTPRequestHandler):
             self.close_connection = 1
             return
 
+        except handlers.HTTPException as e:
+            if e.code == 500:
+                logger.error(e.message)
+
     def get_request_line(self):
         self.raw_requestline = self.rfile.readline(65537)
         if len(self.raw_requestline) > 65536:
@@ -138,11 +181,9 @@ class WebTestRequestHandler(BaseHTTPServer.BaseHTTPRequestHandler):
                 self.request_version = ''
                 self.command = ''
                 return False
-        print self.raw_requestline
         if not self.raw_requestline:
             self.close_connection = 1
         return True
-
 
 class WebTestHttpd(object):
     """
@@ -158,11 +199,14 @@ class WebTestHttpd(object):
     Takes a router class which provides one method get_handler which takes a Request
     and returns a handler function."
     """
-    def __init__(self, router, host="127.0.0.1", port=8000,
+    def __init__(self, host="127.0.0.1", port=8000,
                  server_cls=None, handler_cls=WebTestRequestHandler,
-                 use_ssl=False, certificate=None):
+                 use_ssl=False, certificate=None, router_cls=Router,
+                 doc_root=os.curdir, routes=routes.routes,
+                 rewriter_cls=RequestRewriter, rewrites=None):
 
-        self.router = router
+        self.router = router_cls(doc_root, routes)
+        self.rewriter = rewriter_cls(rewrites if rewrites is not None else [])
 
         self.host = host
         self.port = port
@@ -173,14 +217,19 @@ class WebTestHttpd(object):
         if use_ssl:
             assert certificate is not None and os.path.exists(certificate)
 
-        self.httpd = server_cls(router, (self.host, self.port), handler_cls,
-                                use_ssl=use_ssl, certificate=certificate)
+        self.httpd = server_cls((self.host, self.port),
+                                handler_cls,
+                                router,
+                                rewriter,
+                                use_ssl=use_ssl,
+                                certificate=certificate)
 
     def start(self, block=True):
         """Start the server.
 
         :param block: True to run the server on the current thread, blocking,
                       False to run on a seperate thread."""
+        logging.logger.info("Starting http server on %s:%s" % (self.host, self.port))
         if block:
             self.httpd.serve_forever()
         else:
@@ -195,8 +244,10 @@ class WebTestHttpd(object):
         If the server is not running, this method has no effect.
         """
         if self.httpd:
+            logging.logger.info("Started http server on %s:%s" % (self.host, self.port))
             try:
                 self.httpd.shutdown()
             except AttributeError:
                 pass
+        logging.logger.info("Stopped http server on %s:%s" % (self.host, self.port))
         self.httpd = None
