@@ -19,6 +19,7 @@ class InputFile(object):
     max_buffer_size = 1024*1024
 
     def __init__(self, rfile, length):
+        """File-like object used to provide a seekable view of request body data"""
         self._file = rfile
         self.length = length
 
@@ -128,8 +129,6 @@ class InputFile(object):
 class Request(object):
     """Object representing a HTTP request.
 
-    :param handler: The RequestHandler being used for this request
-
     .. attribute:: doc_root
 
     The local directory to use as a base when resolving paths
@@ -142,21 +141,58 @@ class Request(object):
 
     HTTP method in the request.
 
-    .. attribute:: path
+    .. attribute:: request_path
 
-    Raw request path.
+    Request path as it appears in the HTTP request.
+
+    .. attribute:: url
+
+    Absolute URL for the request.
 
     .. attribute:: headers
 
     List of request headers.
 
-    ..attribute:: raw
+    ..attribute:: raw_input
 
-    Raw request.
+    File-like object representing the body of the request.
 
     ..attribute:: url_parts
 
     Parts of the requested URL as obtained by urlparse.urlsplit(path)
+
+    ..attribute:: request_line
+
+    Raw request line
+
+    ..attribute:: headers
+
+    RequestHeaders object proividing a dictionary-like representation of
+    the request headers.
+
+    ..attribute:: body
+
+    Request body as a string
+
+    ..attribute:: GET
+
+    MultiDict representing the parameters supplied with the request.
+    Note that these may be present on non-GET requests; the name is
+    chosen to be familiar to users of other systems such as PHP.
+
+    ..attribute:: POST
+
+    MultiDict representing the request body parameters. Most parameters
+    are prepresented with string values, but file uploads have file-like
+    values.
+
+    ..attribute:: cookies
+    Cookies object representing cookies sent with the request with a
+    dictionary-like interface.
+
+    ..attribute:: auth
+    Object with username and password properties representing any
+    credentials supplied using HTTP authentication.
     """
 
     def __init__(self, request_handler):
@@ -179,11 +215,12 @@ class Request(object):
         self.url_parts = urlparse.urlsplit(self.url)
 
         self._raw_headers = request_handler.headers
-        self._headers = None
+
         self.request_line = request_handler.raw_requestline
 
         self.raw_input = InputFile(request_handler.rfile,
                                    int(self.headers.get("Content-Length", 0)))
+        self._headers = None
         self._body = None
 
         self._GET = None
@@ -254,6 +291,7 @@ class Request(object):
 
 class RequestHeaders(dict):
     def __init__(self, items):
+        """Dictionary-like API for accessing request headers."""
         for key, value in zip(items.keys(), items.values()):
             key = key.lower()
             if key in self:
@@ -262,6 +300,8 @@ class RequestHeaders(dict):
                 dict.__setitem__(self, key, [value])
 
     def __getitem__(self, key):
+        """Get all headers of a certain (case-insensitive) name. If there is
+        more than one, the values are returned comma seperated"""
         values = dict.__getitem__(self, key.lower())
         if len(values) == 1:
             return values[0]
@@ -272,12 +312,21 @@ class RequestHeaders(dict):
         raise Exception
 
     def get(self, key, default=None):
+        """Get a string representing all headers with a particular value,
+        with multiple headers seperated by a comma. If no header is found
+        return a default value
+
+        :param key: The header name to look up (case-insensitive)
+        :param default: The value to return in the case of no match
+        """
         try:
-            return self[key]
+            return self[key][0]
         except KeyError:
             return default
 
     def get_list(self, key, default=missing):
+        """Get all the header values for a particular field name as
+        a list"""
         try:
             return dict.__getitem__(self, key.lower())
         except:
@@ -291,6 +340,47 @@ class RequestHeaders(dict):
 
 class CookieValue(object):
     def __init__(self, morsel):
+        """Representation of cookies.
+
+        Note that cookies are considered read-only and the string value
+        of the cookie will not change if you update the field values.
+        However this is not enforced.
+
+        ..attribute:: key
+
+        The name of the cookie.
+
+        ..attribute:: value
+
+        The value of the cookie
+
+        ..attribute:: expires
+        The expiry date of the cookie
+
+        ..attribute:: path
+        The path of the cookie
+
+        ..attribute:: comment
+
+        The comment of the cookie.
+
+        ..attribute:: domain
+
+        The domain with which the cookie is associated
+
+        ..attribute:: max_age
+
+        The max-age value of the cookie.
+
+        ..attribute:: secure
+
+        Whether the cookie is marked as secure
+
+        ..attribute:: httponly
+
+        Whether the cookie is marked as httponly
+
+        """
         self.key = morsel.key
         self.value = morsel.value
 
@@ -308,12 +398,20 @@ class CookieValue(object):
         return self._str
 
     def __eq__(self, other):
+        """Equality comparison for cookies. Compares to other cookies
+        based on value alone and on non-cookies based on the equality
+        of self.value with the other object so that a cookie with value
+        "ham" compares equal to the string "ham"
+        """
         if hasattr(other, "value"):
             return self.value == other.value
         return self.value == other
 
 class MultiDict(dict):
+    #TODO: this should perhaps also order the keys
     def __init__(self):
+        """Dicionary type that holds multiple values for each
+        key"""
         pass
 
     def __setitem__(self, name, value):
@@ -325,10 +423,19 @@ class MultiDict(dict):
         else:
             dict.__setitem__(self, name, [value])
 
-    def __getitem__(self, name):
-        return self.first(name)
+    def __getitem__(self, key):
+        """Get the first value with a given key"""
+        #TODO: should this instead be the last value?
+        return self.first(key)
 
     def first(self, key, default=missing):
+        """Get the first value with a given key
+
+        :param key: The key to lookup
+        :param default: The default to return if key is
+                        not found (throws if nothing is
+                        specified)
+        """
         if key in self and dict.__getitem__(self, key):
             return dict.__getitem__(self, key)[0]
         elif default is not missing:
@@ -336,6 +443,13 @@ class MultiDict(dict):
         raise KeyError
 
     def last(self, key, default=missing):
+        """Get the last value with a given key
+
+        :param key: The key to lookup
+        :param default: The default to return if key is
+                        not found (throws if nothing is
+                        specified)
+        """
         if key in self and dict.__getitem__(self, key):
             return dict.__getitem__(self, key)[-1]
         elif default is not missing:
@@ -343,6 +457,10 @@ class MultiDict(dict):
         raise KeyError
 
     def get_list(self):
+        """Get all values with a given key as a list
+
+        :param key: The key to lookup
+        """
         return dict.__getitem__(self, key)
 
     @classmethod
@@ -362,6 +480,7 @@ class MultiDict(dict):
         return self
 
 class Cookies(MultiDict):
+    """MultiDict specialised for Cookie values"""
     def __init__(self):
         pass
 
@@ -371,6 +490,19 @@ class Cookies(MultiDict):
 
 class Authentication(object):
     def __init__(self, headers):
+        """Object for dealing with HTTP Authentication
+
+        ..attribute:: username
+
+        The username supplied in the HTTP Authorization
+        header, or None
+
+        ..attribute:: password
+
+        The password supplied in the HTTP Authorization
+        header, or None
+
+        """
         self.username = None
         self.password = None
 

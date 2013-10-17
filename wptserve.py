@@ -1,7 +1,6 @@
 #!/usr/bin/env python
 import argparse
 import server
-import routes
 import os
 
 def abs_path(path):
@@ -18,13 +17,13 @@ def parse_args():
                         type=str, default="127.0.0.1",
                         help="Host to run server on")
     return parser.parse_args()
-    
+
 
 def main():
     args = parse_args()
-    router = server.Router(args.document_root, routes.routes)
     httpd = server.WebTestHttpd(router, host=args.host, port=args.port,
-                                use_ssl=False, certificate=None)
+                                use_ssl=False, certificate=None,
+                                doc_root=args.document_root)
     httpd.start()
 
 if __name__ == "__main__":

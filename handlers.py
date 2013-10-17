@@ -141,7 +141,7 @@ class FileHandler(object):
                     return self.get_range_data(f, byte_ranges[0])
 
     def set_response_multipart(self, response, ranges, f):
-        parts_content_type = response.headers.get("Content-Type")
+        parts_content_type = response.headers.get("Content-Type")[-1]
         response.headers.set("Content-Type", "multipart/byteranges; boundary=%s" % content.boundary)
         content = MultipartContent()
         return parts_content_type, content

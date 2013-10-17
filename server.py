@@ -19,6 +19,39 @@ import routes
 logger = logging.getLogger("wptserve")
 logger.setLevel(logging.DEBUG)
 
+"""HTTP server designed for testing purposes.
+
+The server is designed to provide flexibility in the way that
+requests are handled, and to provide control both of exactly
+what bytes are put on the wire for the response, and in the
+timing of sending those bytes.
+
+The server is based on the stdlib HTTPServer, but with some
+notable differences in the way that requests are processed.
+Overall processing is handled by a WebTestRequestHandler,
+which is a subclass of BaseHTTPRequestHandler. This is responsible
+for parsing the incoming request. A RequestRewriter is then
+applied and may change the request data if it matches a
+supplied rule.
+
+Once the request data had been finalised, Request and Reponse
+objects are constructed. These are used by the other parts of the
+system to read information about the request and manipulate the
+response.
+
+Each request is handled by a particular handler function. The
+mapping between Request and the appropriate handler is determined
+by a Router. By default handlers are installed to interpret files
+under the document root with .py extensions as executable python
+files (see handlers.py for the api for such files), .asis files as
+bytestreams to be sent literally and all other files to be served
+statically.
+
+The handler functions are responsible for either populating the
+fields of the response object, which will then be written when the
+handler returns, or for directly writing to the output stream.
+"""
+
 class Router(object):
     """Object for matching handler functions to requests.
 
@@ -75,16 +108,39 @@ class Router(object):
 
 class RequestRewriter(object):
     def __init__(self, rules):
+        """Object for rewriting the request path.
+
+        :param rules: Initial rules to add; a list of three item tuples
+                      (method, input_path, output_path), defined as for
+                      register()
+        """
         self.rules = {}
         for rule in reversed(rules):
             self.register(*rule)
 
-    def register(self, methods, path, destination):
+    def register(self, methods, input_path, output_path):
+        """Register a rewrite rul.
+
+        :param methods: Set of methods this should match. "*" is a
+                        special value indicating that all methods should
+                        be matched.
+
+        :param input_path: Path to match for the initial request.
+
+        :param output_path: Path to replace the input path with in
+                            the request.
+        """
         if type(methods) in types.StringTypes:
             methods = [methods]
-        self.rules[path] = (methods, destination)
+        self.rules[input_path] = (methods, output_path)
 
     def rewrite(self, request_handler):
+        """Rewrite the path in a BaseHTTPRequestHandler instance, if
+           it matches a rule.
+
+        :param request_handler: BaseHTTPRequestHandler for which to
+                                rewrite the request.
+        """
         if request_handler.path in self.rules:
             methods, destination = self.rules[request_handler.path]
             if "*" in methods or request_handler.command in methods:
@@ -93,17 +149,34 @@ class RequestRewriter(object):
 
 #TODO: support SSL
 class WebTestServer(ThreadingMixIn, BaseHTTPServer.HTTPServer):
-    """Server for non-SSL HTTP requests"""
-    def __init__(self, server_address, RequestHandlerClass, router, rewriter, **kwargs):
+    def __init__(self, server_address, RequestHandlerClass, router, rewriter, config=None,
+                 use_sll=False, certificate=None, **kwargs):
+        """Server for HTTP(s) Requests
+
+        :param server_address: tuple of (server_name, port)
+
+        :param RequestHandlerClass: BaseHTTPRequestHandler-like class to use for
+                                    handling requests.
+
+        :param router: Router instance to use for matching requests to handler
+                       functions
+
+        :param rewriter: RequestRewriter-like instance to use for preprocessing
+                         requests before they are routed
+
+        :param config: Dictionary holding environment configuration settings for
+                       handlers to read, or None to use the default values.
+
+        :param use_ssl: Boolean indicating whether the server should use SSL
+
+        :certificate: Certificate to use if SSL is enabled.
+        """
         self.router = router
         self.rewriter = rewriter
 
-        use_ssl = kwargs.pop("use_ssl")
-        certificate = kwargs.pop("certificate")
-
         self.scheme = "https" if use_ssl else "http"
 
-        if "config" in kwargs:
+        if config is not None:
             Server.config = kwargs.pop("config")
         else:
             logger.debug("Using default configuration")
@@ -187,12 +260,17 @@ class WebTestRequestHandler(BaseHTTPServer.BaseHTTPRequestHandler):
 
 class WebTestHttpd(object):
     """
-    :param router: Router to use when matching URLs to handlers
     :param host: Host from which to serve (default: 127.0.0.1)
     :param port: Port from which to serve (default: 8000)
     :param server_cls: Class to use for the server (default depends on ssl vs non-ssl)
     :param handler_cls: Class to use for the RequestHandler
     :param use_ssl: Use a SSL server if no explicit server_cls is supplied
+    :param certificate: Certificate file to use if ssl is enabled
+    :param router_cls: Router class to use when matching URLs to handlers
+    :param routes: Document root for serving files
+    :param routes: List of routes with which to initalize the router
+    :param rewriter_cls: Class to use for request rewriter
+    :param rewrites: List of rewrites with which to initalize the rewriter_cls
 
     HTTP server designed for testing scenarios.
 

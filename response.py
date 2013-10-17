@@ -67,9 +67,6 @@ class Response(object):
         self.headers = ResponseHeaders()
         self.content = []
 
-        self.headers_written = False
-        self.content_written = False
-
     @property
     def status(self):
         return self._status
@@ -87,6 +84,8 @@ class Response(object):
     def set_cookie(self, name, value, max_age=None,
                    path="/", domain=None, secure=False,
                    httponly=False, comment=None, expires=None):
+        """Set a cookie to be sent with a Set-Cookie header in the
+        response"""
         #TODO: deal with max age and expires in some sane way
         if value is None:
             value = ''
@@ -106,6 +105,7 @@ class Response(object):
         self.headers.append("Set-Cookie", m.OutputString())
 
     def unset_cookie(self, name):
+        """Remove a cookie from those that are being sent with the response"""
         cookies = self.headers.get("Set-Cookie")
         parser = Cookie.BaseCookie()
         for cookie in cookies:
@@ -118,6 +118,8 @@ class Response(object):
                     self.headers.append(("Set-Cookie", m.OutputString()))
 
     def delete_cookie(self, name, path="/", domain=None):
+        """Delete a cookie on the client by setting it to the empty string
+        and to expire in the past"""
         self.set_cookie(name, None, path=path, domain=domain, max_age=0)
 
     def iter_content(self):
@@ -137,21 +139,26 @@ class Response(object):
                     yield value
 
     def write_status_headers(self):
+        """Write out the status line and headers for the response"""
         self.writer.write_status(*self.status)
         for item in self.headers:
             self.writer.write_header(*item)
         self.writer.end_headers()
 
     def write_content(self):
+        """Write out the response content"""
         if self.request.method != "HEAD":
             for item in self.iter_content():
                 self.writer.write_content(item)
 
     def write(self):
+        """Write the whole response"""
         self.write_status_headers()
         self.write_content()
 
     def set_error(self, code, message=""):
+        """Set the response status headers and body to indicate an
+        error"""
         err ={"code":code,
               "message":message}
         data = json.dumps({"error": err})
@@ -212,18 +219,32 @@ class MultipartPart(object):
 
 class ResponseHeaders(object):
     def __init__(self):
+        """Dictionary-like object holding the headers for the response"""
         self.data = OrderedDict()
 
     def set(self, key, value):
+        """Set a header to a specific value, overwriting any previous header
+        with the same name
+
+        :param key: Name of the header to set
+        :param value: Value to set the header to
+        """
         self.data[key.lower()] = (key, [value])
 
     def append(self, key, value):
+        """Add a new header with a given name, not overwriting any existing
+        headers with the same name
+
+        :param key: Name of the header to add
+        :param value: Value to set for the header
+        """
         if key.lower() in self.data:
             self.data[key.lower()][1].append(value)
         else:
             self.set(key, value)
 
     def get(self, key, default=missing):
+        """Get the set values for a particular header."""
         try:
             return self[key]
         except KeyError:
@@ -232,6 +253,9 @@ class ResponseHeaders(object):
             return default
 
     def __getitem__(self, key):
+        """Get a list of values for a particular header
+
+        """
         self.data[key.lower()][1]
 
     def __delitem__(self, key):
