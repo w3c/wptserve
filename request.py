@@ -10,6 +10,18 @@ import stash
 missing = object()
 
 class Server(object):
+    """Data about the server environment
+
+    .. attribute:: config
+
+    Environment configuration information with information about the
+    various servers running, their hostnames ane ports.
+
+    .. attribute:: stash
+
+    Stash object holding state stored on the server between requests.
+
+    """
     config = None
 
     def __init__(self, request):
@@ -153,46 +165,52 @@ class Request(object):
 
     List of request headers.
 
-    ..attribute:: raw_input
+    .. attribute:: raw_input
 
     File-like object representing the body of the request.
 
-    ..attribute:: url_parts
+    .. attribute:: url_parts
 
     Parts of the requested URL as obtained by urlparse.urlsplit(path)
 
-    ..attribute:: request_line
+    .. attribute:: request_line
 
     Raw request line
 
-    ..attribute:: headers
+    .. attribute:: headers
 
     RequestHeaders object proividing a dictionary-like representation of
     the request headers.
 
-    ..attribute:: body
+    .. attribute:: body
 
     Request body as a string
 
-    ..attribute:: GET
+    .. attribute:: GET
 
     MultiDict representing the parameters supplied with the request.
     Note that these may be present on non-GET requests; the name is
     chosen to be familiar to users of other systems such as PHP.
 
-    ..attribute:: POST
+    .. attribute:: POST
 
     MultiDict representing the request body parameters. Most parameters
     are prepresented with string values, but file uploads have file-like
     values.
 
-    ..attribute:: cookies
+    .. attribute:: cookies
+
     Cookies object representing cookies sent with the request with a
     dictionary-like interface.
 
-    ..attribute:: auth
+    .. attribute:: auth
+
     Object with username and password properties representing any
     credentials supplied using HTTP authentication.
+
+    .. attribute:: server
+
+    Server object containing information about the server environment.
     """
 
     def __init__(self, request_handler):
@@ -290,8 +308,8 @@ class Request(object):
 
 
 class RequestHeaders(dict):
+    """Dictionary-like API for accessing request headers."""
     def __init__(self, items):
-        """Dictionary-like API for accessing request headers."""
         for key, value in zip(items.keys(), items.values()):
             key = key.lower()
             if key in self:
@@ -339,48 +357,50 @@ class RequestHeaders(dict):
         return dict.__contains__(self, key.lower())
 
 class CookieValue(object):
+    """Representation of cookies.
+
+    Note that cookies are considered read-only and the string value
+    of the cookie will not change if you update the field values.
+    However this is not enforced.
+
+    .. attribute:: key
+
+    The name of the cookie.
+
+    .. attribute:: value
+
+    The value of the cookie
+
+    .. attribute:: expires
+
+    The expiry date of the cookie
+
+    .. attribute:: path
+
+    The path of the cookie
+
+    .. attribute:: comment
+
+    The comment of the cookie.
+
+    .. attribute:: domain
+
+    The domain with which the cookie is associated
+
+    .. attribute:: max_age
+
+    The max-age value of the cookie.
+
+    .. attribute:: secure
+
+    Whether the cookie is marked as secure
+
+    .. attribute:: httponly
+
+    Whether the cookie is marked as httponly
+
+    """
     def __init__(self, morsel):
-        """Representation of cookies.
-
-        Note that cookies are considered read-only and the string value
-        of the cookie will not change if you update the field values.
-        However this is not enforced.
-
-        ..attribute:: key
-
-        The name of the cookie.
-
-        ..attribute:: value
-
-        The value of the cookie
-
-        ..attribute:: expires
-        The expiry date of the cookie
-
-        ..attribute:: path
-        The path of the cookie
-
-        ..attribute:: comment
-
-        The comment of the cookie.
-
-        ..attribute:: domain
-
-        The domain with which the cookie is associated
-
-        ..attribute:: max_age
-
-        The max-age value of the cookie.
-
-        ..attribute:: secure
-
-        Whether the cookie is marked as secure
-
-        ..attribute:: httponly
-
-        Whether the cookie is marked as httponly
-
-        """
         self.key = morsel.key
         self.value = morsel.value
 
@@ -408,10 +428,10 @@ class CookieValue(object):
         return self.value == other
 
 class MultiDict(dict):
+    """Dicionary type that holds multiple values for each
+    key"""
     #TODO: this should perhaps also order the keys
     def __init__(self):
-        """Dicionary type that holds multiple values for each
-        key"""
         pass
 
     def __setitem__(self, name, value):
@@ -489,20 +509,19 @@ class Cookies(MultiDict):
 
 
 class Authentication(object):
+    """Object for dealing with HTTP Authentication
+
+    .. attribute:: username
+
+    The username supplied in the HTTP Authorization
+    header, or None
+
+    .. attribute:: password
+
+    The password supplied in the HTTP Authorization
+    header, or None
+    """
     def __init__(self, headers):
-        """Object for dealing with HTTP Authentication
-
-        ..attribute:: username
-
-        The username supplied in the HTTP Authorization
-        header, or None
-
-        ..attribute:: password
-
-        The password supplied in the HTTP Authorization
-        header, or None
-
-        """
         self.username = None
         self.password = None
 

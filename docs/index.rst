@@ -15,7 +15,11 @@ Contents:
 .. toctree::
    :maxdepth: 2
 
-   serve
+   server
+   request
+   response
+   stash
+   handlers
    pipes
 
 

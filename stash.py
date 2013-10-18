@@ -5,12 +5,29 @@ import uuid
 #servers
 
 class Stash(object):
+    """Key-value store for persisting data across HTTP requests.
+
+    Data store specifically designed for persisting data across
+    HTTP requests. This has several unusual properties. Keys
+    are of the form (path, uuid), where path is, by default, the
+    path in the HTTP request and uuid is a unique id. In addition,
+    the store is read once, i.e. the read operation (called "take")
+    is destructive. Taken together, these properties make it
+    difficult for data to accidentially leak between different resources
+    or different requests for the same resource.."""
+
     data = {}
 
     def __init__(self, default_path):
         self.default_path = default_path
 
     def put(self, key, value, path=None):
+        """Place a value in the stash.
+
+        :param key: A UUID to use as the data's key.
+        :param value: The data to store. This can be any python object.
+        :param path: The path that has access to read the data (by default
+                     the current request path)"""
         if path is None:
             path = self.default_path
         if path not in self.data:
@@ -19,6 +36,12 @@ class Stash(object):
         self.data[path][key] = value
 
     def take(self, key, path=None):
+        """Remove a value from the stash and return it.
+
+        :param key: A UUID to use as the data's key.
+        :param value: The data to store. This can be any python object.
+        :param path: The path that has access to read the data (by default
+                     the current request path)"""
         if path is None:
             path = self.default_path
 

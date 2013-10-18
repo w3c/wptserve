@@ -218,8 +218,8 @@ class MultipartPart(object):
         return "\r\n".join(rv)
 
 class ResponseHeaders(object):
+    """Dictionary-like object holding the headers for the response"""
     def __init__(self):
-        """Dictionary-like object holding the headers for the response"""
         self.data = OrderedDict()
 
     def set(self, key, value):

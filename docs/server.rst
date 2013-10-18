@@ -1,7 +1,7 @@
 Server
 ======
 
-Request and Response objects, along with server internals.
+Server designed for testing web browsers.
 
 :mod:`wptserve`
 ---------------
