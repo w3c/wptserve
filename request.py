@@ -145,6 +145,11 @@ class Request(object):
 
     The local directory to use as a base when resolving paths
 
+    .. attribute:: route_match
+
+    Regexp match object from matching the request path to the route
+    selected for the request.
+
     .. attribute:: protocol_version
 
     HTTP version specified in the request.
@@ -215,6 +220,8 @@ class Request(object):
 
     def __init__(self, request_handler):
         self.doc_root = request_handler.server.router.doc_root
+        self.route_match = None #Set by the router
+
         self.protocol_version = request_handler.protocol_version
         self.method = request_handler.command
 
@@ -339,7 +346,7 @@ class RequestHeaders(dict):
         :param default: The value to return in the case of no match
         """
         try:
-            return self[key][0]
+            return self[key]
         except KeyError:
             return default
 

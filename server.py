@@ -10,6 +10,7 @@ import types
 import logging
 import ssl
 import imp
+import urlparse
 
 import handlers
 from request import Server, Request
@@ -97,12 +98,14 @@ class Router(object):
             if (request.method == method or
                 method == "*" or
                 (request.method == "GET" and method == "HEAD")):
-                if regexp.match(request.url_parts.path):
+                m = regexp.match(request.url_parts.path)
+                if m:
                     if not hasattr(handler, "__class__"):
                         name = handler.__name__
                     else:
                         name = handler.__class__.__name__
                     logger.debug("Found handler %s" % name)
+                    request.route_match = m
                     return handler
         return None
 
@@ -288,6 +291,8 @@ class WebTestHttpd(object):
         self.router = router_cls(doc_root, routes)
         self.rewriter = rewriter_cls(rewrites if rewrites is not None else [])
 
+        self.use_ssl = use_ssl
+
         if server_cls is None:
             server_cls = WebTestServer
 
@@ -300,15 +305,17 @@ class WebTestHttpd(object):
                                 self.rewriter,
                                 use_ssl=use_ssl,
                                 certificate=certificate)
+        self.started = False
 
         _host, self.port = self.httpd.socket.getsockname()
 
-    def start(self, block=True):
+    def start(self, block=False):
         """Start the server.
 
         :param block: True to run the server on the current thread, blocking,
                       False to run on a seperate thread."""
         logger.info("Starting http server on %s:%s" % (self.host, self.port))
+        self.started = True
         if block:
             self.httpd.serve_forever()
         else:
@@ -322,10 +329,19 @@ class WebTestHttpd(object):
 
         If the server is not running, this method has no effect.
         """
-        if self.httpd:
+        if self.started:
             try:
                 self.httpd.shutdown()
                 logger.info("Stopped http server on %s:%s" % (self.host, self.port))
             except AttributeError:
                 pass
+            self.started = False
         self.httpd = None
+
+    def get_url(self, path="/", query=None, fragment=None):
+        if not self.started:
+            return None
+
+        return urlparse.urlunsplit(("http" if not self.use_ssl else "https",
+                                    "%s:%s" % (self.host, self.port),
+                                    path, query, fragment))

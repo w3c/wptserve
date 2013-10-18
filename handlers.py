@@ -32,29 +32,6 @@ def guess_content_type(path):
 
     return "application/octet-stream"
 
-class MozBaseHandler(object):
-    def __init__(self, handler):
-        self.handler = handler
-
-    def __call__(self, request, response):
-        status_code, headers, data = self.handler(request, response)
-        response.status = status_code
-        response.headers.update(headers)
-        response.content = data
-
-        return response
-
-#tobie has the idea that it should be possible to pass file responses through
-#arbitary middleware, identified through the query string, something like
-# GET /foo/bar?pipe=delay("10,1d,100,1d")|status(200)
-#If this turns out to be useful, it needs to be supported somehow by making
-#each piped thing a function that is composed and applied to the response
-#just before it is sent. For example consider
-#GET /foo/bar?pipe=delay("10,1d,100,2d")|delay("1000,3d")
-#this should send 100 bytes, wait for 1s, send 100 bytes wait for 2s, then
-#collect the first 1000 bytes from the previous step, wait for 3s and send the
-#rest of the content. This seems quite useless but it would be quite surprising
-#if it doesn't work
 
 class DirectoryHandler(object):
     def __call__(self, request, response):
