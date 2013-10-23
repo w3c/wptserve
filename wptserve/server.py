@@ -185,7 +185,7 @@ class WebTestServer(ThreadingMixIn, BaseHTTPServer.HTTPServer):
         self.scheme = "https" if use_ssl else "http"
 
         if config is not None:
-            Server.config = kwargs.pop("config")
+            Server.config = config
         else:
             logger.debug("Using default configuration")
             Server.config = {"host":server_address[0],

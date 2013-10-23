@@ -191,10 +191,10 @@ def json_handler(func):
 
 
 def as_is_handler(request, response):
-    path = filesystem_path(request)
-
+    path = request.filesystem_path
     try:
-        response.writer.write(open(path).read())
+        with open(path) as f:
+            response.writer.write_content(f.read())
     except IOError:
         raise HTTPException(404)
 
