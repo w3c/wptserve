@@ -338,6 +338,10 @@ class ResponseWriter(object):
                 if name.lower() not in self._headers_seen:
                     self.write_header(name, f())
 
+            if type(self._response.content) in (str, unicode) and "content-length" not in self._headers_seen:
+                #Would be nice to avoid double-encoding here
+                self.write_header("Content-Length", len(self.encode(self._response.content)))
+
         self.write("\r\n")
         if not self._response.explicit_flush:
             self.flush()

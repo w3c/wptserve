@@ -6,3 +6,9 @@ def invert_dict(dict):
                 raise ValueError
             rv[value] = key
     return rv
+
+
+class HTTPException(Exception):
+    def __init__(self, code, message=""):
+        self.code = code
+        self.message = message

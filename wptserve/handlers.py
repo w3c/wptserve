@@ -4,26 +4,18 @@ import pipes
 import urlparse
 import cgi
 import traceback
+import urllib
 
 from pipes import Pipeline
 from constants import content_types
+from ranges import RangeParser
+from utils import HTTPException
 
 logger = logging.getLogger("wptserve")
 
-class HTTPException(Exception):
-    def __init__(self, code, message=""):
-        self.code = code
-        self.message = message
-
-def filesystem_path(request):
-    path = request.url_parts.path
-    if path.startswith("/"):
-        path = path[1:]
-
-    if ".." in path:
-        raise HTTPException(500)
-
-    return os.path.join(request.doc_root, path)
+__all__ = ["file_handler", "python_script_handler"
+           "FunctionHandler", "handler", "json_handler",
+           "as_is_handler", "ErrorHandler"]
 
 def guess_content_type(path):
     ext = os.path.splitext(path)[1].lstrip(".")
@@ -35,13 +27,14 @@ def guess_content_type(path):
 
 class DirectoryHandler(object):
     def __call__(self, request, response):
-        path = filesystem_path(request)
+        path = request.filesystem_path
 
         assert os.path.isdir(path)
 
         response.headers = [("Content-Type", "text/html")]
         response.content = """<!doctype html>
-<h1>%(path)s</h1>
+<title>Directory listing for %(path)s</title>
+<h1>Directory listing for %(path)s</h1>
 <ul>
 %(items)s
 </li>
@@ -55,12 +48,14 @@ class DirectoryHandler(object):
             link = urlparse.urljoin(base_path, "..")
             yield """<li><a href="%(link)s">%(name)s</a>""" % {"link":link, "name": ".."}
         for item in sorted(os.listdir(path)):
-            link = cgi.escape(base_path + item)
+            link = cgi.escape(urllib.quote(item))
             yield """<li><a href="%(link)s">%(name)s</a>""" % {"link":link, "name": cgi.escape(item)}
+
+directory_handler = DirectoryHandler()
 
 class FileHandler(object):
     def __call__(self, request, response):
-        path = filesystem_path(request)
+        path = request.filesystem_path
 
         if os.path.isdir(path):
             return directory_handler(request, response)
@@ -131,126 +126,69 @@ class FileHandler(object):
     def default_headers(self, path):
         return [("Content-Type", guess_content_type(path))]
 
-class RangeParser(object):
-    def __call__(self, header, file_size):
-        prefix = "bytes="
-        if not header.startswith(prefix):
-            raise HTTPException(400, message="Unrecognised range type %s" % (header,))
 
-        parts = header[len(prefix):].split(",")
-        ranges = []
-        for item in parts:
-            components = item.split("-")
-            if len(components) != 2:
-                raise HTTPException(400, "Bad range specifier %s" % (item))
-            data = []
-            for component in components:
-                if component == "":
-                    data.append(None)
-                else:
-                    try:
-                        data.append(int(component))
-                    except ValueError:
-                        raise HTTPException(400, "Bad range specifier %s" % (item))
-            ranges.append(Range(data[0], data[1], file_size))
-
-        return self.coalesce_ranges(ranges, file_size)
-
-    def coalesce_ranges(self, ranges, file_size):
-        rv = []
-        target = None
-        for current in reversed(sorted(ranges)):
-            if target is None:
-                target = current
-            else:
-                new = target.coalesce(current)
-                target = new[0]
-                if len(new) > 1:
-                    rv.append(new[1])
-        rv.append(target)
-
-        return rv[::-1]
-
-class Range(object):
-    def __init__(self, lower, upper, file_size):
-        self.lower = lower
-        self.upper = upper
-        self.file_size = file_size
-
-
-    def __repr__(self):
-        return "<Range %s-%s>" % (self.lower, self.upper)
-
-    def __lt__(self, other):
-        return self.abs()[0] < other.abs()[0]
-
-    def __gt__(self, other):
-        return self.abs()[0] > other.abs()[0]
-
-    def __eq__(self, other):
-        self_lower, self_upper = self.abs()
-        other_lower, other_upper = other.abs()
-
-        return self_lower == other_lower and self_upper == other_upper
-
-    def abs(self):
-        if self.lower is None and self.upper is None:
-            lower, upper = 0, self.file_size - 1
-        elif self.lower is None:
-            lower, upper = max(0, self.file_size - self.upper), self.file_size - 1
-        elif self.upper is None:
-            lower, upper = self.lower, self.file_size - 1
-        else:
-            lower, upper = self.lower, min(self.file_size - 1, self.upper)
-
-        return lower, upper
-
-    def coalesce(self, other):
-        assert self.file_size == other.file_size
-        self_lower, self_upper = self.abs()
-        other_lower, other_upper = other.abs()
-
-        if (self_upper < other_lower - 1 or self_lower - 1 > other_upper):
-            return sorted([self, other])
-        else:
-            return [Range(min(self_lower, other_lower), max(self_upper, other_upper), self.file_size)]
-
-    def header_value(self):
-        lower, upper = self.abs()
-        return "bytes %i-%i/%i" % (lower, upper, self.file_size)
-
-directory_handler = DirectoryHandler()
 file_handler = FileHandler()
 
-def python_handler(request, response):
-    path = filesystem_path(request)
+
+def python_script_handler(request, response):
+    path = request.filesystem_path
 
     try:
         environ = {"__file__": path}
         execfile(path, environ, environ)
         if "main" in environ:
-            try:
-                rv = environ["main"](request, response)
-            except:
-                msg = traceback.format_exc()
-                raise HTTPException(500, message=msg)
-            if rv is not None:
-                if isinstance(rv, tuple):
-                    if len(rv) == 3:
-                        status, headers, content = rv
-                        response.status = status
-                    elif len(rv) == 2:
-                        headers, content = rv
-                    else:
-                        raise HTTPException(500)
-                    response.headers.update(headers)
-                else:
-                    content = rv
-                response.content = content
+            handler = FunctionHandler(environ["main"])
+            handler(request, response)
         else:
             raise HTTPException(500)
     except IOError:
         raise HTTPException(404)
+
+
+def FunctionHandler(func):
+    def inner(request, response):
+        try:
+            rv = func(request, response)
+        except:
+            msg = traceback.format_exc()
+            raise HTTPException(500, message=msg)
+        if rv is not None:
+            if isinstance(rv, tuple):
+                if len(rv) == 3:
+                    status, headers, content = rv
+                    response.status = status
+                elif len(rv) == 2:
+                    headers, content = rv
+                else:
+                    raise HTTPException(500)
+                response.headers.update(headers)
+            else:
+                content = rv
+            response.content = content
+    return inner
+
+
+#The generic name here is so that this can be used as a decorator
+handler = FunctionHandler
+
+
+def json_handler(func):
+    handler = FunctionHandler(func)
+    def inner(request, response):
+        rv = func(request, response)
+        response.headers.set("Content-Type", "application/json")
+        enc = json.dumps
+        if isinstance(rv, tuple):
+            rv = list[rv]
+            value = tuple(rv[:-1] + enc(rv[-1]))
+            length = len(value[-1])
+        else:
+            value = enc(rv)
+            length = len(value)
+        response.headers.set("Content-Length", length)
+        return value
+    return inner
+
 
 def as_is_handler(request, response):
     path = filesystem_path(request)
@@ -259,6 +197,7 @@ def as_is_handler(request, response):
         response.writer.write(open(path).read())
     except IOError:
         raise HTTPException(404)
+
 
 class ErrorHandler(object):
     def __init__(self, status):
