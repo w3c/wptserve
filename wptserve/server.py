@@ -184,16 +184,16 @@ class WebTestServer(ThreadingMixIn, BaseHTTPServer.HTTPServer):
 
         self.scheme = "https" if use_ssl else "http"
 
+        #super doesn't work here because BaseHTTPServer.HTTPServer is old-style
+        BaseHTTPServer.HTTPServer.__init__(self, server_address, RequestHandlerClass, **kwargs)
+
         if config is not None:
             Server.config = config
         else:
             logger.debug("Using default configuration")
             Server.config = {"host":server_address[0],
                              "domains":{"": server_address[0]},
-                             "ports":{"http":[server_address[1]]}}
-
-        #super doesn't work here because BaseHTTPServer.HTTPServer is old-style
-        BaseHTTPServer.HTTPServer.__init__(self, server_address, RequestHandlerClass, **kwargs)
+                             "ports":{"http":[self.server_address[1]]}}
 
         if use_ssl:
             self.socket = ssl.wrap_socket(self.socket,
@@ -211,13 +211,14 @@ class WebTestServer(ThreadingMixIn, BaseHTTPServer.HTTPServer):
              error.errno in self.acceptable_errors)):
             pass  # remote hang up before the result is sent
         else:
-            logging.error(error)
+            logger.error(traceback.format_exc())
 
 
 class WebTestRequestHandler(BaseHTTPServer.BaseHTTPRequestHandler):
     """RequestHandler for WebTestHttpd"""
 
     def handle_one_request(self):
+        response = None
         try:
             self.close_connection = False
             request_line_is_valid = self.get_request_line()
@@ -264,9 +265,12 @@ class WebTestRequestHandler(BaseHTTPServer.BaseHTTPRequestHandler):
             self.close_connection = 1
             return
 
-        except HTTPException as e:
-            if e.code == 500:
-                logger.error(e.message)
+        except Exception as e:
+            err = traceback.format_exc()
+            if response:
+                response.set_error(500, err)
+                response.write()
+            logger.error(err)
 
     def get_request_line(self):
         self.raw_requestline = self.rfile.readline(65537)

@@ -4,14 +4,14 @@ class RangeParser(object):
     def __call__(self, header, file_size):
         prefix = "bytes="
         if not header.startswith(prefix):
-            raise HTTPException(400, message="Unrecognised range type %s" % (header,))
+            raise HTTPException(416, message="Unrecognised range type %s" % (header,))
 
         parts = header[len(prefix):].split(",")
         ranges = []
         for item in parts:
             components = item.split("-")
             if len(components) != 2:
-                raise HTTPException(400, "Bad range specifier %s" % (item))
+                raise HTTPException(416, "Bad range specifier %s" % (item))
             data = []
             for component in components:
                 if component == "":
@@ -20,8 +20,11 @@ class RangeParser(object):
                     try:
                         data.append(int(component))
                     except ValueError:
-                        raise HTTPException(400, "Bad range specifier %s" % (item))
-            ranges.append(Range(data[0], data[1], file_size))
+                        raise HTTPException(416, "Bad range specifier %s" % (item))
+            try:
+                ranges.append(Range(data[0], data[1], file_size))
+            except ValueError:
+                raise HTTPException(416, "Bad range specifier %s" % (item))
 
         return self.coalesce_ranges(ranges, file_size)
 
@@ -42,48 +45,42 @@ class RangeParser(object):
 
 class Range(object):
     def __init__(self, lower, upper, file_size):
-        self.lower = lower
-        self.upper = upper
         self.file_size = file_size
-
+        self.lower, self.upper = self._abs(lower, upper)
+        if self.lower >= self.upper or self.lower >= self.file_size:
+            raise ValueError
 
     def __repr__(self):
         return "<Range %s-%s>" % (self.lower, self.upper)
 
     def __lt__(self, other):
-        return self.abs()[0] < other.abs()[0]
+        return self.lower < other.lower
 
     def __gt__(self, other):
-        return self.abs()[0] > other.abs()[0]
+        return self.lower > other.lower
 
     def __eq__(self, other):
-        self_lower, self_upper = self.abs()
-        other_lower, other_upper = other.abs()
+        return self.lower == other.lower and self.upper == other.upper
 
-        return self_lower == other_lower and self_upper == other_upper
-
-    def abs(self):
-        if self.lower is None and self.upper is None:
-            lower, upper = 0, self.file_size - 1
-        elif self.lower is None:
-            lower, upper = max(0, self.file_size - self.upper), self.file_size - 1
-        elif self.upper is None:
-            lower, upper = self.lower, self.file_size - 1
+    def _abs(self, lower, upper):
+        if lower is None and upper is None:
+            lower, upper = 0, self.file_size
+        elif lower is None:
+            lower, upper = max(0, self.file_size - upper), self.file_size
+        elif upper is None:
+            lower, upper = lower, self.file_size
         else:
-            lower, upper = self.lower, min(self.file_size - 1, self.upper)
+            lower, upper = lower, min(self.file_size, upper + 1)
 
         return lower, upper
 
     def coalesce(self, other):
         assert self.file_size == other.file_size
-        self_lower, self_upper = self.abs()
-        other_lower, other_upper = other.abs()
 
-        if (self_upper < other_lower - 1 or self_lower - 1 > other_upper):
+        if (self.upper < other.lower or self.lower > other.upper):
             return sorted([self, other])
         else:
-            return [Range(min(self_lower, other_lower), max(self_upper, other_upper), self.file_size)]
+            return [Range(min(self.lower, other.lower), max(self.upper, other.upper) - 1, self.file_size)]
 
     def header_value(self):
-        lower, upper = self.abs()
-        return "bytes %i-%i/%i" % (lower, upper, self.file_size)
+        return "bytes %i-%i/%i" % (self.lower, self.upper - 1, self.file_size)

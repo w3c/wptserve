@@ -4,9 +4,12 @@ import Cookie
 import types
 from collections import OrderedDict
 import uuid
-from datetime import timedelta
+from datetime import datetime, timedelta
+import logging
 
 from constants import response_codes
+
+logger = logging.getLogger("wptserve")
 
 missing = object()
 
@@ -81,26 +84,62 @@ class Response(object):
         else:
             self._status = (int(value), None)
 
-    def set_cookie(self, name, value, max_age=None,
-                   path="/", domain=None, secure=False,
-                   httponly=False, comment=None, expires=None):
+    def set_cookie(self, name, value, path="/", domain=None, max_age=None,
+                   expires=None, secure=False, httponly=False, comment=None):
         """Set a cookie to be sent with a Set-Cookie header in the
-        response"""
-        #TODO: deal with max age and expires in some sane way
+        response
+
+        :param name: String name of the cookie
+        :param value: String value of the cookie
+        :param max_age: datetime.timedelta int representing the time (in seconds)
+                        until the cookie expires
+        :param path: String path to which the cookie applies
+        :param domain: String domain to which the cookie applies
+        :param secure: Boolean indicating whether the cookie is marked as secure
+        :param httponly: Boolean indicating whether the cookie is marked as
+                         HTTP Only
+        :param comment: String comment
+        :param expires: datetime.datetime or datetime.timedelta indicating a
+                        time or interval from now when the cookie expires
+
+        """
+        days = dict((i+1, name) for i,name in enumerate(["jan", "feb", "mar",
+                                                         "apr", "may", "jun",
+                                                         "jul", "aug", "sep",
+                                                         "oct", "nov", "dec"]))
         if value is None:
             value = ''
             max_age = 0
             expires = timedelta(days=-1)
 
+            print expires, path
+
+        if isinstance(expires, timedelta):
+            expires = datetime.utcnow() + expires
+
+        if expires is not None:
+            expires_str = expires.strftime("%d %%s %Y %H:%M:%S GMT")
+            expires_str = expires_str % days[expires.month]
+            expires = expires_str
+
+        if max_age is not None:
+            if hasattr(max_age, "total_seconds"):
+                max_age = int(max_age.total_seconds())
+            max_age = "%.0d" % max_age
+
         m = Cookie.Morsel()
+        def maybe_set(key, value):
+            if value is not None and value != False:
+                m[key] = value
+
         m.set(name, value, value)
-        m.path = path
-        m.domain = domain
-        m.comment = comment
-        m.expires = expires
-        m.max_age = max_age
-        m.secure = secure
-        m.httponly = httponly
+        maybe_set("path", path)
+        maybe_set("domain", domain)
+        maybe_set("comment", comment)
+        maybe_set("expires", expires)
+        maybe_set("max-age", max_age)
+        maybe_set("secure", secure)
+        maybe_set("httponly", httponly)
 
         self.headers.append("Set-Cookie", m.OutputString())
 
@@ -114,7 +153,7 @@ class Response(object):
         if name in parser.keys():
             del self.headers["Set-Cookie"]
             for m in parser.values():
-                if m.name != name:
+                if m.key != name:
                     self.headers.append(("Set-Cookie", m.OutputString()))
 
     def delete_cookie(self, name, path="/", domain=None):
@@ -165,9 +204,9 @@ class Response(object):
         self.status = code
         self.headers = [("Content-Type", "text/json"),
                         ("Content-Length", len(data))]
-        if code == 500:
-            raise
         self.content = data
+        if code == 500:
+            logger.error(message)
 
 class MultipartContent(object):
     def __init__(self, boundary=None, default_content_type=None):
@@ -184,13 +223,19 @@ class MultipartContent(object):
             rv.append(str(item))
             rv.append(boundary)
         rv[-1] += "--"
-        rv.append("")
         return "\r\n".join(rv)
 
     def append_part(self, data, content_type=None, headers=None):
         if content_type is None:
             content_type = self.default_content_type
         self.items.append(MultipartPart(data, content_type, headers))
+
+    def __iter__(self):
+        #This is hackish; when writing the response we need an iterable
+        #or a string. For a multipart/byterange response we want an
+        #iterable that contains a single callable; the MultipartContent
+        #object itself
+        yield self
 
 class MultipartPart(object):
     def __init__(self, data, content_type=None, headers=None):
@@ -256,7 +301,7 @@ class ResponseHeaders(object):
         """Get a list of values for a particular header
 
         """
-        self.data[key.lower()][1]
+        return self.data[key.lower()][1]
 
     def __delitem__(self, key):
         del self.data[key.lower()]
@@ -320,7 +365,7 @@ class ResponseWriter(object):
         :param name: Name of the header field
         :param value: Value of the header field
         """
-        self._headers_seen.add(name)
+        self._headers_seen.add(name.lower())
         self.write("%s: %s\r\n" % (name, value))
         if not self._response.explicit_flush:
             self.flush()

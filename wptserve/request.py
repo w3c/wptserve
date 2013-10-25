@@ -87,7 +87,7 @@ class InputFile(object):
         if offset <= self._file_position:
             self._buf.seek(offset)
         else:
-            self.file.read(offset - self._file_position)
+            self.read(offset - self._file_position)
 
     def readline(self, max_bytes=None):
         if max_bytes is None:
@@ -314,6 +314,7 @@ class Request(object):
     def body(self):
         if self._body is None:
             pos = self.raw_input.tell()
+            self.raw_input.seek(0)
             self._body = self.raw_input.read()
             self.raw_input.seek(pos)
         return self._body

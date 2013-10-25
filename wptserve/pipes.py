@@ -121,7 +121,6 @@ class pipe(object):
             if not (self.min_args <= len(args) <= self.max_args):
                 raise ValueError, "Expected between %d and %d args, got %d" % (self.min_args, self.max_args, len(args))
             arg_values = tuple(f(x) for f,x in zip(self.arg_converters, args))
-            logger.debug("Running pipe %s" % f.__name__)
             return f(request, response, *arg_values)
         Pipeline.pipes[f.__name__] = inner
         #We actually want the undecorated function in the main namespace
@@ -156,10 +155,7 @@ def header(request, response, name, value):
 
     :param name: Name of the header to set.
     :param value: Value to use for the header."""
-    name_lower = name.lower()
-    headers = [item for item in response.headers if item[0].lower() != name_lower]
-    headers.append((name, value))
-    response.headers = headers
+    response.headers.set(name, value)
     return response
 
 @pipe(str)
@@ -203,6 +199,7 @@ def trickle(request, response, delays):
     content = resolve_content(response)
     modified_content = []
     offset = [0]
+    parts = len(delays)
 
     def sleep(seconds):
         def inner():
@@ -210,9 +207,8 @@ def trickle(request, response, delays):
             return ""
         return inner
 
-    def add_content(delays):
+    def add_content(delays, repeat=False):
         for i, (item_type, value) in enumerate(delays):
-            logger.debug("%s, %d" % (type, value))
             if item_type == "bytes":
                 modified_content.append(content[offset[0]:offset[0] + value])
                 offset[0] += value
@@ -221,9 +217,9 @@ def trickle(request, response, delays):
             elif item_type == "repeat":
                 assert i == len(delays) - 1
                 while offset[0] < len(content):
-                    add_content(delays[-(value + 1):-1])
+                    add_content(delays[-(value + 1):-1], True)
 
-        if offset[0] < len(content):
+        if not repeat and offset[0] < len(content):
             modified_content.append(content[offset[0]:])
 
     add_content(delays)

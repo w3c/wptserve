@@ -1,34 +1,86 @@
-import sys
 import os
 import unittest
 import urllib2
-import urlparse
+import json
+import time
 
-here = os.path.split(__file__)[0]
-doc_root = os.path.join(here, "docroot")
-sys.path.insert(0, os.path.abspath(os.path.join(here, "..", "..")))
-import server
+import wptserve
+from base import TestUsingServer, doc_root
 
-class TestBasicRequest(unittest.TestCase):
-    def setUp(self):
-        self.server = server.WebTestHttpd(host="localhost", port=0,
-                                          use_ssl=False, certificate=None,
-                                          doc_root=doc_root)
-        self.server.start(False)
+class TestInputFile(TestUsingServer):
+    def test_seek(self):
+        @wptserve.handlers.handler
+        def handler(request, response):
+            rv = []
+            f = request.raw_input
+            f.seek(5)
+            rv.append(f.read(2))
+            rv.append(f.tell())
+            f.seek(0)
+            rv.append(f.readline())
+            rv.append(f.tell())
+            rv.append(f.read(-1))
+            rv.append(f.tell())
+            f.seek(0)
+            rv.append(f.read())
+            f.seek(0)
+            rv.extend(f.readlines())
 
+            return " ".join(str(item) for item in rv)
 
-    def tearDown(self):
-        self.server.stop()
-
-    def get_url(self, path, query=None):
-        return urlparse.urlunsplit(("http", "localhost:%i" % self.server.port, path, query, None))
-
-    def test_GET(self):
-        print self.get_url("/document.txt")
-        resp = urllib2.urlopen(self.get_url("/document.txt"))
-        content = resp.read()
+        route = ("POST", "/test/test_seek", handler)
+        self.server.router.register(*route)
+        resp = self.request(route[1], method="POST", body="12345ab\ncdef")
         self.assertEquals(200, resp.getcode())
-        self.assertEquals("text/plain", resp.info()["Content-Type"])
-        self.assertEquals(open(os.path.join(doc_root, "document.txt")).read(), content)
+        self.assertEquals(["ab", "7", "12345ab\n", "8", "cdef", "12",
+                           "12345ab\ncdef", "12345ab\n", "cdef"],
+                          resp.read().split(" "))
 
-    
+    def test_iter(self):
+        @wptserve.handlers.handler
+        def handler(request, response):
+            f = request.raw_input
+            return " ".join(line for line in f)
+
+        route = ("POST", "/test/test_iter", handler)
+        self.server.router.register(*route)
+        resp = self.request(route[1], method="POST", body="12345\nabcdef\r\nzyxwv")
+        self.assertEquals(200, resp.getcode())
+        self.assertEquals(["12345\n", "abcdef\r\n", "zyxwv"], resp.read().split(" "))
+
+class TestRequest(TestUsingServer):
+    def test_body(self):
+        @wptserve.handlers.handler
+        def handler(request, response):
+            request.raw_input.seek(5)
+            return request.body
+
+        route = ("POST", "/test/test_body", handler)
+        self.server.router.register(*route)
+        resp = self.request(route[1], method="POST", body="12345ab\ncdef")
+        self.assertEquals("12345ab\ncdef", resp.read())
+
+    def test_route_match(self):
+        @wptserve.handlers.handler
+        def handler(request, response):
+            return " ".join(request.route_match.groups())
+
+        route = ("GET", "/test/match_(.*)", handler)
+        self.server.router.register(*route)
+        resp = self.request("/test/match_route")
+        self.assertEquals("route", resp.read())
+
+class TestAuth(TestUsingServer):
+    def test_auth(self):
+        @wptserve.handlers.handler
+        def handler(request, response):
+            return " ".join((request.auth.username, request.auth.password))
+
+        route = ("GET", "/test/test_auth", handler)
+        self.server.router.register(*route)
+        resp = self.request(route[1], auth=("test", "PASS"))
+        self.assertEquals(200, resp.getcode())
+        self.assertEquals(["test", "PASS"], resp.read().split(" "))
+
+if __name__ == '__main__':
+    unittest.main()

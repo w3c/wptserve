@@ -5,11 +5,13 @@ import urlparse
 import cgi
 import traceback
 import urllib
+import json
 
 from pipes import Pipeline
 from constants import content_types
 from ranges import RangeParser
 from utils import HTTPException
+from response import MultipartContent
 
 logger = logging.getLogger("wptserve")
 
@@ -64,7 +66,12 @@ class FileHandler(object):
             file_size = os.stat(path).st_size
             response.headers.update(self.get_headers(path))
             if "Range" in request.headers:
-                byte_ranges = RangeParser()(request.headers['Range'], file_size)
+                try:
+                    byte_ranges = RangeParser()(request.headers['Range'], file_size)
+                except HTTPException as e:
+                    if e.code == 416:
+                        response.headers.set("Content-Range", "bytes */%i" % file_size)
+                        raise
             else:
                 byte_ranges = None
             data = self.get_data(response, path, byte_ranges)
@@ -113,15 +120,18 @@ class FileHandler(object):
                     return self.get_range_data(f, byte_ranges[0])
 
     def set_response_multipart(self, response, ranges, f):
-        parts_content_type = response.headers.get("Content-Type")[-1]
-        response.headers.set("Content-Type", "multipart/byteranges; boundary=%s" % content.boundary)
+        parts_content_type = response.headers.get("Content-Type")
+        if parts_content_type:
+            parts_content_type = parts_content_type[-1]
+        else:
+            parts_content_type = None
         content = MultipartContent()
+        response.headers.set("Content-Type", "multipart/byteranges; boundary=%s" % content.boundary)
         return parts_content_type, content
 
     def get_range_data(self, f, byte_range):
-        lower, upper = byte_range.abs()
-        f.seek(lower)
-        return f.read(upper - lower)
+        f.seek(byte_range.lower)
+        return f.read(byte_range.upper - byte_range.lower)
 
     def default_headers(self, path):
         return [("Content-Type", guess_content_type(path))]
@@ -173,21 +183,20 @@ handler = FunctionHandler
 
 
 def json_handler(func):
-    handler = FunctionHandler(func)
     def inner(request, response):
         rv = func(request, response)
         response.headers.set("Content-Type", "application/json")
         enc = json.dumps
         if isinstance(rv, tuple):
-            rv = list[rv]
-            value = tuple(rv[:-1] + enc(rv[-1]))
+            rv = list(rv)
+            value = tuple(rv[:-1] + [enc(rv[-1])])
             length = len(value[-1])
         else:
             value = enc(rv)
             length = len(value)
         response.headers.set("Content-Length", length)
         return value
-    return inner
+    return FunctionHandler(inner)
 
 
 def as_is_handler(request, response):
