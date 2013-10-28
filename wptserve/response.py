@@ -112,8 +112,6 @@ class Response(object):
             max_age = 0
             expires = timedelta(days=-1)
 
-            print expires, path
-
         if isinstance(expires, timedelta):
             expires = datetime.utcnow() + expires
 

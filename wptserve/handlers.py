@@ -44,14 +44,20 @@ class DirectoryHandler(object):
 
     def list_items(self, request, path):
         base_path = request.url_parts.path
+        filesystem_base = request.filesystem_path
         if not base_path.endswith("/"):
             base_path += "/"
         if base_path != "/":
             link = urlparse.urljoin(base_path, "..")
-            yield """<li><a href="%(link)s">%(name)s</a>""" % {"link":link, "name": ".."}
+            yield """<li class="dir"><a href="%(link)s">%(name)s</a>""" % {"link":link, "name": ".."}
         for item in sorted(os.listdir(path)):
             link = cgi.escape(urllib.quote(item))
-            yield """<li><a href="%(link)s">%(name)s</a>""" % {"link":link, "name": cgi.escape(item)}
+            if os.path.isdir(os.path.join(filesystem_base, item)):
+                link += "/"
+                class_= "dir"
+            else:
+                class_ = "file"
+            yield """<li class="%(class)s"><a href="%(link)s">%(name)s</a>""" % {"link":link, "name": cgi.escape(item), "class":class_}
 
 directory_handler = DirectoryHandler()
 
