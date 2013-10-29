@@ -1,5 +1,6 @@
 from utils import HTTPException
 
+
 class RangeParser(object):
     def __call__(self, header, file_size):
         prefix = "bytes="
@@ -43,6 +44,7 @@ class RangeParser(object):
 
         return rv[::-1]
 
+
 class Range(object):
     def __init__(self, lower, upper, file_size):
         self.file_size = file_size
@@ -80,7 +82,9 @@ class Range(object):
         if (self.upper < other.lower or self.lower > other.upper):
             return sorted([self, other])
         else:
-            return [Range(min(self.lower, other.lower), max(self.upper, other.upper) - 1, self.file_size)]
+            return [Range(min(self.lower, other.lower),
+                          max(self.upper, other.upper) - 1,
+                          self.file_size)]
 
     def header_value(self):
         return "bytes %i-%i/%i" % (self.lower, self.upper - 1, self.file_size)

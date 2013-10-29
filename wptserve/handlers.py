@@ -1,23 +1,23 @@
-import os
-import logging
-import pipes
-import urlparse
 import cgi
+import json
+import logging
+import os
 import traceback
 import urllib
-import json
+import urlparse
 
-from pipes import Pipeline
 from constants import content_types
+from pipes import Pipeline
 from ranges import RangeParser
-from utils import HTTPException
 from response import MultipartContent
+from utils import HTTPException
 
 logger = logging.getLogger("wptserve")
 
-__all__ = ["file_handler", "python_script_handler"
+__all__ = ["file_handler", "python_script_handler",
            "FunctionHandler", "handler", "json_handler",
            "as_is_handler", "ErrorHandler"]
+
 
 def guess_content_type(path):
     ext = os.path.splitext(path)[1].lstrip(".")
@@ -40,7 +40,8 @@ class DirectoryHandler(object):
 <ul>
 %(items)s
 </li>
-""" % {"path": cgi.escape(request.url_parts.path), "items": "\n".join(self.list_items(request, path))}
+""" % {"path": cgi.escape(request.url_parts.path),
+       "items": "\n".join(self.list_items(request, path))}
 
     def list_items(self, request, path):
         base_path = request.url_parts.path
@@ -49,17 +50,21 @@ class DirectoryHandler(object):
             base_path += "/"
         if base_path != "/":
             link = urlparse.urljoin(base_path, "..")
-            yield """<li class="dir"><a href="%(link)s">%(name)s</a>""" % {"link":link, "name": ".."}
+            yield ("""<li class="dir"><a href="%(link)s">%(name)s</a>""" %
+                   {"link": link, "name": ".."})
         for item in sorted(os.listdir(path)):
             link = cgi.escape(urllib.quote(item))
             if os.path.isdir(os.path.join(filesystem_base, item)):
                 link += "/"
-                class_= "dir"
+                class_ = "dir"
             else:
                 class_ = "file"
-            yield """<li class="%(class)s"><a href="%(link)s">%(name)s</a>""" % {"link":link, "name": cgi.escape(item), "class":class_}
+            yield ("""<li class="%(class)s"><a href="%(link)s">%(name)s</a>""" %
+                   {"link": link, "name": cgi.escape(item), "class": class_})
+
 
 directory_handler = DirectoryHandler()
+
 
 class FileHandler(object):
     def __call__(self, request, response):
@@ -89,7 +94,7 @@ class FileHandler(object):
 
             return response
 
-        except OSError, IOError:
+        except (OSError, IOError):
             raise HTTPException(404)
 
     def get_headers(self, path):
@@ -107,7 +112,6 @@ class FileHandler(object):
             return [tuple(item.strip() for item in line.split(":", 1))
                     for line in headers_file if line]
 
-
     def get_data(self, response, path, byte_ranges):
         with open(path) as f:
             if byte_ranges is None:
@@ -115,7 +119,9 @@ class FileHandler(object):
             else:
                 response.status = 206
                 if len(byte_ranges) > 1:
-                    parts_content_type, content = self.set_response_multipart(response, byte_ranges, f)
+                    parts_content_type, content = self.set_response_multipart(response,
+                                                                              byte_ranges,
+                                                                              f)
                     for byte_range in byte_ranges:
                         content.append_part(self.get_range_data(f, byte_range),
                                             parts_content_type,

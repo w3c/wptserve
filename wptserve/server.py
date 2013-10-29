@@ -1,23 +1,21 @@
-import sys
-import os
 import BaseHTTPServer
-from SocketServer import ThreadingMixIn
-import traceback
-import socket
-import threading
-import re
-import types
-import logging
-import ssl
-import imp
-import urlparse
 import errno
+import logging
+import os
+import re
+import socket
+from SocketServer import ThreadingMixIn
+import ssl
+import sys
+import threading
+import traceback
+import types
+import urlparse
 
-import handlers
 from request import Server, Request
 from response import Response
-import routes
 from utils import HTTPException
+import routes
 
 logger = logging.getLogger("wptserve")
 logger.setLevel(logging.DEBUG)
@@ -54,6 +52,7 @@ The handler functions are responsible for either populating the
 fields of the response object, which will then be written when the
 handler returns, or for directly writing to the output stream.
 """
+
 
 class Router(object):
     """Object for matching handler functions to requests.
@@ -111,6 +110,7 @@ class Router(object):
                     return handler
         return None
 
+
 class RequestRewriter(object):
     def __init__(self, rules):
         """Object for rewriting the request path.
@@ -149,10 +149,11 @@ class RequestRewriter(object):
         if request_handler.path in self.rules:
             methods, destination = self.rules[request_handler.path]
             if "*" in methods or request_handler.command in methods:
-                logger.debug("Rewriting request path %s to %s" % (request_handler.path, destination))
+                logger.debug("Rewriting request path %s to %s" %
+                             (request_handler.path, destination))
                 request_handler.path = destination
 
-#TODO: support SSL
+
 class WebTestServer(ThreadingMixIn, BaseHTTPServer.HTTPServer):
     allow_reuse_address = True
     acceptable_errors = (errno.EPIPE, errno.ECONNABORTED)
@@ -191,9 +192,9 @@ class WebTestServer(ThreadingMixIn, BaseHTTPServer.HTTPServer):
             Server.config = config
         else:
             logger.debug("Using default configuration")
-            Server.config = {"host":server_address[0],
-                             "domains":{"": server_address[0]},
-                             "ports":{"http":[self.server_address[1]]}}
+            Server.config = {"host": server_address[0],
+                             "domains": {"": server_address[0]},
+                             "ports": {"http": [self.server_address[1]]}}
 
         if use_ssl:
             self.socket = ssl.wrap_socket(self.socket,
@@ -256,7 +257,8 @@ class WebTestRequestHandler(BaseHTTPServer.BaseHTTPRequestHandler):
                     else:
                         err = traceback.format_exc()
                     response.set_error(500, err)
-            logger.info("%i %s %s %i" % (response.status[0], request.method, request.request_path, request.raw_input.length))
+            logger.info("%i %s %s %i" % (response.status[0], request.method,
+                                         request.request_path, request.raw_input.length))
             if not response.writer.content_written:
                 response.write()
 
@@ -282,6 +284,7 @@ class WebTestRequestHandler(BaseHTTPServer.BaseHTTPRequestHandler):
         if not self.raw_requestline:
             self.close_connection = 1
         return True
+
 
 class WebTestHttpd(object):
     """
@@ -342,7 +345,7 @@ class WebTestHttpd(object):
             self.httpd.serve_forever()
         else:
             self.server_thread = threading.Thread(target=self.httpd.serve_forever)
-            self.server_thread.setDaemon(True) # don't hang on exit
+            self.server_thread.setDaemon(True)  # don't hang on exit
             self.server_thread.start()
 
     def stop(self):

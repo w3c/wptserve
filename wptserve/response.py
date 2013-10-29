@@ -1,17 +1,16 @@
-import sys
-import json
-import Cookie
-import types
 from collections import OrderedDict
-import uuid
 from datetime import datetime, timedelta
+import Cookie
+import json
 import logging
+import types
+import uuid
 
 from constants import response_codes
 
 logger = logging.getLogger("wptserve")
-
 missing = object()
+
 
 class Response(object):
     """Object representing the response to a HTTP request
@@ -103,10 +102,10 @@ class Response(object):
                         time or interval from now when the cookie expires
 
         """
-        days = dict((i+1, name) for i,name in enumerate(["jan", "feb", "mar",
-                                                         "apr", "may", "jun",
-                                                         "jul", "aug", "sep",
-                                                         "oct", "nov", "dec"]))
+        days = dict((i+1, name) for i, name in enumerate(["jan", "feb", "mar",
+                                                          "apr", "may", "jun",
+                                                          "jul", "aug", "sep",
+                                                          "oct", "nov", "dec"]))
         if value is None:
             value = ''
             max_age = 0
@@ -126,8 +125,9 @@ class Response(object):
             max_age = "%.0d" % max_age
 
         m = Cookie.Morsel()
+
         def maybe_set(key, value):
-            if value is not None and value != False:
+            if value is not None and value is not False:
                 m[key] = value
 
         m.set(name, value, value)
@@ -196,8 +196,8 @@ class Response(object):
     def set_error(self, code, message=""):
         """Set the response status headers and body to indicate an
         error"""
-        err ={"code":code,
-              "message":message}
+        err = {"code": code,
+               "message": message}
         data = json.dumps({"error": err})
         self.status = code
         self.headers = [("Content-Type", "text/json"),
@@ -205,6 +205,7 @@ class Response(object):
         self.content = data
         if code == 500:
             logger.error(message)
+
 
 class MultipartContent(object):
     def __init__(self, boundary=None, default_content_type=None):
@@ -235,6 +236,7 @@ class MultipartContent(object):
         #object itself
         yield self
 
+
 class MultipartPart(object):
     def __init__(self, data, content_type=None, headers=None):
         self.headers = ResponseHeaders()
@@ -259,6 +261,7 @@ class MultipartPart(object):
         rv.append("")
         rv.append(self.data)
         return "\r\n".join(rv)
+
 
 class ResponseHeaders(object):
     """Dictionary-like object holding the headers for the response"""
@@ -325,6 +328,7 @@ class ResponseHeaders(object):
     def __repr__(self):
         return repr(self.data)
 
+
 class ResponseWriter(object):
     """Object providing an API to write out a HTTP response.
 
@@ -381,7 +385,8 @@ class ResponseWriter(object):
                 if name.lower() not in self._headers_seen:
                     self.write_header(name, f())
 
-            if type(self._response.content) in (str, unicode) and "content-length" not in self._headers_seen:
+            if (type(self._response.content) in (str, unicode) and
+                "content-length" not in self._headers_seen):
                 #Would be nice to avoid double-encoding here
                 self.write_header("Content-Length", len(self.encode(self._response.content)))
 

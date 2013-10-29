@@ -1,8 +1,8 @@
-import time
 import uuid
 
 #TODO: Consider expiring values after some fixed time for long-running
 #servers
+
 
 class Stash(object):
     """Key-value store for persisting data across HTTP requests.
@@ -61,7 +61,9 @@ class PathStash(dict):
         if value is None:
             raise ValueError("Stash value may not be set to None")
         if key in self:
-            raise StashError("Tried to overwrite existing stash value for path %s and key %s (old value was %s, new value is %s)" % (self.path, key, self[str(key)], value))
+            raise StashError("Tried to overwrite existing stash value "
+                             "for path %s and key %s (old value was %s, new value is %s)" %
+                             (self.path, key, self[str(key)], value))
         else:
             dict.__setitem__(self, key, value)
 
@@ -71,6 +73,7 @@ class PathStash(dict):
         if rv is not None:
             del self[key]
         return rv
+
 
 class StashError(Exception):
     pass

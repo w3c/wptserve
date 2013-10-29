@@ -1,18 +1,18 @@
-import urlparse
-import Cookie
-import tempfile
-import StringIO
-import cgi
 import base64
-import os
+import cgi
+import Cookie
 import logging
+import os
+import StringIO
+import tempfile
+import urlparse
 
 import stash
 from utils import HTTPException
 
 logger = logging.getLogger("wptserve")
-
 missing = object()
+
 
 class Server(object):
     """Data about the server environment
@@ -31,6 +31,7 @@ class Server(object):
 
     def __init__(self, request):
         self.stash = stash.Stash(request.url_parts.path)
+
 
 class InputFile(object):
     max_buffer_size = 1024*1024
@@ -143,6 +144,7 @@ class InputFile(object):
     def __iter__(self):
         return self
 
+
 class Request(object):
     """Object representing a HTTP request.
 
@@ -229,7 +231,7 @@ class Request(object):
 
     def __init__(self, request_handler):
         self.doc_root = request_handler.server.router.doc_root
-        self.route_match = None #Set by the router
+        self.route_match = None  # Set by the router
 
         self.protocol_version = request_handler.protocol_version
         self.method = request_handler.command
@@ -242,10 +244,10 @@ class Request(object):
         if self.request_path.startswith(scheme + "://"):
             self.url = request_handler.path
         else:
-            self.url = "%s://%s:%s%s"%(scheme,
-                                       host,
-                                       port,
-                                       self.request_path)
+            self.url = "%s://%s:%s%s" % (scheme,
+                                         host,
+                                         port,
+                                         self.request_path)
         self.url_parts = urlparse.urlsplit(self.url)
 
         self._raw_headers = request_handler.headers
@@ -285,7 +287,7 @@ class Request(object):
             pos = self.raw_input.tell()
             self.raw_input.seek(0)
             fs = cgi.FieldStorage(fp=self.raw_input,
-                                  environ = {"REQUEST_METHOD": self.method},
+                                  environ={"REQUEST_METHOD": self.method},
                                   headers=self.headers,
                                   keep_blank_values=True)
             self._POST = MultiDict.from_field_storage(fs)
@@ -297,7 +299,7 @@ class Request(object):
         if self._cookies is None:
             parser = Cookie.BaseCookie()
             cookie_headers = self.headers.get("cookie", "")
-            data = parser.load(cookie_headers)
+            parser.load(cookie_headers)
             cookies = Cookies()
             for key, value in parser.iteritems():
                 cookies[key] = CookieValue(value)
@@ -325,7 +327,6 @@ class Request(object):
             self._auth = Authentication(self.headers)
         return self._auth
 
-
     @property
     def filesystem_path(self):
         if self._filesystem_path is None:
@@ -339,6 +340,7 @@ class Request(object):
             self._filesystem_path = os.path.join(self.doc_root, path)
         logger.debug(self._filesystem_path)
         return self._filesystem_path
+
 
 class RequestHeaders(dict):
     """Dictionary-like API for accessing request headers."""
@@ -388,6 +390,7 @@ class RequestHeaders(dict):
 
     def __contains__(self, key):
         return dict.__contains__(self, key.lower())
+
 
 class CookieValue(object):
     """Representation of cookies.
@@ -460,6 +463,7 @@ class CookieValue(object):
             return self.value == other.value
         return self.value == other
 
+
 class MultiDict(dict):
     """Dicionary type that holds multiple values for each
     key"""
@@ -509,7 +513,7 @@ class MultiDict(dict):
             return default
         raise KeyError
 
-    def get_list(self):
+    def get_list(self, key):
         """Get all values with a given key as a list
 
         :param key: The key to lookup
@@ -521,7 +525,7 @@ class MultiDict(dict):
         self = cls()
         for key in fs:
             values = fs[key]
-            if type(values) != type([]):
+            if not isinstance(values, list):
                 values = [values]
 
             for value in values:
@@ -531,6 +535,7 @@ class MultiDict(dict):
                     value = value.value
                 self.add(key, value)
         return self
+
 
 class Cookies(MultiDict):
     """MultiDict specialised for Cookie values"""

@@ -1,16 +1,19 @@
-import sys
-import types
-import re
 from cgi import escape
 import logging
+import re
+import time
+import types
+
 
 logger = logging.getLogger("wptserve")
+
 
 def resolve_content(response):
     rv = "".join(item for item in response.iter_content())
     if type(rv) == unicode:
         rv = rv.encode(response.encoding)
     return rv
+
 
 class Pipeline(object):
     pipes = {}
@@ -33,6 +36,7 @@ class Pipeline(object):
         for func, args in self.pipe_functions:
             response = func(request, response, *args)
         return response
+
 
 class PipeTokenizer(object):
     def __init__(self):
@@ -100,6 +104,7 @@ class PipeTokenizer(object):
                    "t": "\t"}
         return escapes.get(char, char)
 
+
 class pipe(object):
     def __init__(self, *arg_converters):
         self.arg_converters = arg_converters
@@ -119,12 +124,14 @@ class pipe(object):
     def __call__(self, f):
         def inner(request, response, *args):
             if not (self.min_args <= len(args) <= self.max_args):
-                raise ValueError, "Expected between %d and %d args, got %d" % (self.min_args, self.max_args, len(args))
-            arg_values = tuple(f(x) for f,x in zip(self.arg_converters, args))
+                raise ValueError("Expected between %d and %d args, got %d" %
+                                 (self.min_args, self.max_args, len(args)))
+            arg_values = tuple(f(x) for f, x in zip(self.arg_converters, args))
             return f(request, response, *arg_values)
         Pipeline.pipes[f.__name__] = inner
         #We actually want the undecorated function in the main namespace
         return f
+
 
 class opt(object):
     def __init__(self, f):
@@ -132,6 +139,7 @@ class opt(object):
 
     def __call__(self, arg):
         return self.f(arg)
+
 
 def nullable(func):
     def inner(arg):
@@ -141,6 +149,7 @@ def nullable(func):
             return func(arg)
     return inner
 
+
 @pipe(int)
 def status(request, response, code):
     """Alter the status code.
@@ -148,6 +157,7 @@ def status(request, response, code):
     :param code: Status code to use for the response."""
     response.status = code
     return response
+
 
 @pipe(str, str)
 def header(request, response, name, value):
@@ -157,6 +167,7 @@ def header(request, response, name, value):
     :param value: Value to use for the header."""
     response.headers.set(name, value)
     return response
+
 
 @pipe(str)
 def trickle(request, response, delays):
@@ -170,7 +181,6 @@ def trickle(request, response, delays):
                    Would cause a 1 second delay, would then send 100 bytes
                    of the file, and then cause a 2 second delay, before sending
                    the remainder of the file."""
-    import time
     def parse_delays():
         parts = delays.split(":")
         rv = []
@@ -182,7 +192,7 @@ def trickle(request, response, delays):
             elif item.startswith("r"):
                 item_type = "repeat"
                 value = int(item[1:])
-                if not value%2 == 0:
+                if not value % 2 == 0:
                     raise ValueError
             else:
                 item_type = "bytes"
@@ -199,7 +209,6 @@ def trickle(request, response, delays):
     content = resolve_content(response)
     modified_content = []
     offset = [0]
-    parts = len(delays)
 
     def sleep(seconds):
         def inner():
@@ -227,6 +236,7 @@ def trickle(request, response, delays):
     response.content = modified_content
     return response
 
+
 @pipe(nullable(int), opt(nullable(int)))
 def slice(request, response, start, end=None):
     """Send a byte range of the response body
@@ -241,6 +251,7 @@ def slice(request, response, start, end=None):
     content = resolve_content(response)
     response.content = content[start:end]
     return response
+
 
 class ReplacementTokenizer(object):
     def ident(scanner, token):
@@ -260,12 +271,14 @@ class ReplacementTokenizer(object):
     scanner = re.Scanner([(r"\w+", ident),
                           (r"\[[^\]]*\]", index)])
 
+
 class FirstWrapper(object):
     def __init__(self, params):
         self.params = params
 
     def __getitem__(self, key):
         return self.params.first(key)
+
 
 @pipe()
 def sub(request, response):
@@ -315,12 +328,7 @@ def sub(request, response):
         return escape(unicode(value)).encode("utf-8")
 
     template_regexp = re.compile(r"{{([^}]*)}}")
-    try:
-        new_content, count = template_regexp.subn(config_replacement, content)
-    except Exception as e:
-        raise
-        response.set_error(500)
-        return
+    new_content, count = template_regexp.subn(config_replacement, content)
 
     response.content = new_content
     return response
