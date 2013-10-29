@@ -30,6 +30,10 @@ class TestHeader(TestUsingServer):
         resp = self.request("/document.txt", query="pipe=header(Content-Type,FAIL)|header(Content-Type,text/html)")
         self.assertEquals(resp.info()["Content-Type"], "text/html")
 
+    def test_multiple_append(self):
+        resp = self.request("/document.txt", query="pipe=header(X-Test,1)|header(X-Test,2,True)")
+        self.assertEquals(resp.info()["X-Test"], "1, 2")
+
 class TestSlice(TestUsingServer):
     def test_both_bounds(self):
         resp = self.request("/document.txt", query="pipe=slice(1,10)")

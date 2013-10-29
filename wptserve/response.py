@@ -33,7 +33,7 @@ class Response(object):
 
     .. attribute:: explicit_flush
 
-       Boolean indicating whether ouptput should be flushed automatically or only
+       Boolean indicating whether output should be flushed automatically or only
        when requested.
 
     .. attribute:: writer

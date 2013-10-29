@@ -20,7 +20,7 @@ class Server(object):
     .. attribute:: config
 
     Environment configuration information with information about the
-    various servers running, their hostnames ane ports.
+    various servers running, their hostnames and ports.
 
     .. attribute:: stash
 
@@ -211,7 +211,7 @@ class Request(object):
     .. attribute:: POST
 
     MultiDict representing the request body parameters. Most parameters
-    are prepresented with string values, but file uploads have file-like
+    are present as string values, but file uploads have file-like
     values.
 
     .. attribute:: cookies

@@ -7,14 +7,20 @@ import uuid
 class Stash(object):
     """Key-value store for persisting data across HTTP requests.
 
-    Data store specifically designed for persisting data across
-    HTTP requests. This has several unusual properties. Keys
-    are of the form (path, uuid), where path is, by default, the
-    path in the HTTP request and uuid is a unique id. In addition,
-    the store is read once, i.e. the read operation (called "take")
-    is destructive. Taken together, these properties make it
-    difficult for data to accidentially leak between different resources
-    or different requests for the same resource.."""
+    This data store specifically designed for persisting data across
+    HTTP requests. It is entirely in-memory so data will not be
+    persisted across server restarts.
+
+    This has several unusual properties. Keys are of the form (path,
+    uuid), where path is, by default, the path in the HTTP request and
+    uuid is a unique id. In addition, the store is write-once, read-once,
+    i.e. the value associated with a particular key cannot be changed once
+    written and the read operation (called "take") is destructive. Taken together,
+    these properties make it difficult for data to accidentially leak
+    between different resources or different requests for the same
+    resource.
+
+    """
 
     data = {}
 

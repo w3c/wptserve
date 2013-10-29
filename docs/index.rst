@@ -9,7 +9,7 @@ Web Platform Test Server
 A python-based HTTP server specifically targeted at being used for
 testing the web platform. This means that extreme flexibility —
 including the possibility of HTTP non-conformance — in the response is
-needed.
+supported.
 
 Contents:
 

@@ -150,6 +150,14 @@ def nullable(func):
     return inner
 
 
+def boolean(arg):
+    if arg.lower() in ("true", "1"):
+        return True
+    elif arg.lower in ("false", "0"):
+        return False
+    raise ValueError
+
+
 @pipe(int)
 def status(request, response, code):
     """Alter the status code.
@@ -159,13 +167,22 @@ def status(request, response, code):
     return response
 
 
-@pipe(str, str)
-def header(request, response, name, value):
+@pipe(str, str, opt(boolean))
+def header(request, response, name, value, append=False):
     """Set a HTTP header.
 
+    Replaces any existing HTTP header of the same name unless
+    append is set, in which case the header is appended without
+    replacement.
+
     :param name: Name of the header to set.
-    :param value: Value to use for the header."""
-    response.headers.set(name, value)
+    :param value: Value to use for the header.
+    :param append: True if existing headers should not be replaced
+    """
+    if not append:
+        response.headers.set(name, value)
+    else:
+        response.headers.append(name, value)
     return response
 
 
@@ -180,7 +197,16 @@ def trickle(request, response, delays):
                    d1:100:d2
                    Would cause a 1 second delay, would then send 100 bytes
                    of the file, and then cause a 2 second delay, before sending
-                   the remainder of the file."""
+                   the remainder of the file.
+
+                   If the last token is of the form rN, instead of sending the
+                   remainder of the file, the previous N instructions will be
+                   repeated until the whole file has been sent e.g.
+                   d1:100:d2:r2
+                   Causes a delay of 1s, then 100 bytes to be sent, then a 2s delay
+                   and then a further 100 bytes followed by a two second delay
+                   until the response has been fully sent.
+                   """
     def parse_delays():
         parts = delays.split(":")
         rv = []
@@ -282,15 +308,21 @@ class FirstWrapper(object):
 
 @pipe()
 def sub(request, response):
-    """Substitute configuration information about the server into the script.
+    """Substitute environment information about the server and request into the script.
 
-    The format is a very limited template language. Substitutions are enclosed
-    by {{ and }}. There are 3 fields "host", "domains" and "ports". "host" is
-    just a simple string value and represents the primary host from which the
-    tests are being run. "domains" is a dictionary of avaliable domains indexed
-    by subdomain name. "ports" is a dictionary of lists of ports indexed by
-    protocol. So for example in a setup running on localhost with a www subdomain
-    and a http server on ports 80 and 81:
+    The format is a very limited template language. Substitutions are
+    enclosed by {{ and }}. There are 5 fields "host", "domains",
+    "ports", "headers" and "GET".
+
+    "host" is just a simple string value and represents the primary
+     host from which the tests are being run.
+    "domains" is a dictionary of avaliable domains indexed by subdomain name.
+    "ports" is a dictionary of lists of ports indexed by protocol.
+    "headers" is a dictionary of HTTP headers in the request
+    "GET" is a dictionary of query parameters supplied with the request.
+
+    So for example in a setup running on localhost with a www
+    subdomain and a http server on ports 80 and 81:
 
     {{host}} => localhost
     {{domains[www]}} => www.localhost

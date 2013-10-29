@@ -78,7 +78,10 @@ class Router(object):
                         be matched.
 
         :param path_regexp: String that can be compiled into a regexp that
-                            is matched against the request path.
+                            is matched against the request path. The regexp
+                            is automatically anchored to the start and end
+                            of the url by prepending a "^" and appending a
+                            "$", so these should not be supplied.
 
         :param handler: Function that will be called to process matching
                         requests. This must take two parameters, the request
