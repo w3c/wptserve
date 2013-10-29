@@ -39,7 +39,6 @@ class Stash(object):
         """Remove a value from the stash and return it.
 
         :param key: A UUID to use as the data's key.
-        :param value: The data to store. This can be any python object.
         :param path: The path that has access to read the data (by default
                      the current request path)"""
         if path is None:

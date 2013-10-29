@@ -157,7 +157,8 @@ class Response(object):
     def delete_cookie(self, name, path="/", domain=None):
         """Delete a cookie on the client by setting it to the empty string
         and to expire in the past"""
-        self.set_cookie(name, None, path=path, domain=domain, max_age=0)
+        self.set_cookie(name, None, path=path, domain=domain, max_age=0,
+                        expires=timedelta(days=-1))
 
     def iter_content(self):
         """Iterator returning chunks of response body content.

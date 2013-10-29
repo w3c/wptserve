@@ -87,7 +87,7 @@ class Router(object):
         if type(methods) in types.StringTypes:
             methods = [methods]
         for method in methods:
-            self.routes.append((method, re.compile(path_regexp), handler))
+            self.routes.append((method, re.compile("^%s$" % path_regexp), handler))
 
     def get_handler(self, request):
         """Get a handler for a request or None if there is no handler.
