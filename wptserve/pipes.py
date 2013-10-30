@@ -153,7 +153,7 @@ def nullable(func):
 def boolean(arg):
     if arg.lower() in ("true", "1"):
         return True
-    elif arg.lower in ("false", "0"):
+    elif arg.lower() in ("false", "0"):
         return False
     raise ValueError
 

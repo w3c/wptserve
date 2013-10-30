@@ -10,7 +10,7 @@ the request (e.g. the path) either to populate the response
 object with the data to send, or to directly write to the
 output stream via the ResponseWriter instance associated with
 the request. If a handler writes to the output stream then the
-server will not attempt additional writes i.e. the choice to write
+server will not attempt additional writes, i.e. the choice to write
 directly in the handler or not is all-or-nothing.
 
 By default there are three types of handler provided:
@@ -43,7 +43,7 @@ and `content` is a string or an iterable returning strings.
 asis Handlers
 -------------
 
-This is used to serve files as literal byte streams including the
+These are used to serve files as literal byte streams including the
 HTTP status line, headers and body. In the default configuration this
 handler is invoked for all files with a .asis extension.
 
@@ -54,7 +54,7 @@ File handlers are used to serve static files. By default the content
 type of these files is set by examining the file extension. However
 this can be overridden, or additional headers supplied, by providing a
 file with the same name as the file being served but an additional
-.headers suffix i.e. test.html has its headers set from
+.headers suffix, i.e. test.html has its headers set from
 test.html.headers. The format of the .headers file is plaintext, with
 each line containing::
 
