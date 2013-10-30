@@ -101,7 +101,7 @@ class Router(object):
         for method, regexp, handler in reversed(self.routes):
             if (request.method == method or
                 method == "*" or
-                (request.method == "GET" and method == "HEAD")):
+                (request.method == "HEAD" and method == "GET")):
                 m = regexp.match(request.url_parts.path)
                 if m:
                     if not hasattr(handler, "__class__"):

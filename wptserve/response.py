@@ -31,6 +31,11 @@ class Response(object):
        Boolean indicating whether mandatory headers should be added to the
        response.
 
+    .. attribute:: send_body_for_head_request
+
+       Boolean, default False, indicating whether the body content should be
+       sent when the request method is HEAD.
+
     .. attribute:: explicit_flush
 
        Boolean indicating whether output should be flushed automatically or only
@@ -61,6 +66,7 @@ class Response(object):
         self.encoding = "utf8"
 
         self.add_required_headers = True
+        self.send_body_for_head_request = False
         self.explicit_flush = False
 
         self.writer = ResponseWriter(handler, self)
@@ -185,7 +191,7 @@ class Response(object):
 
     def write_content(self):
         """Write out the response content"""
-        if self.request.method != "HEAD":
+        if self.request.method != "HEAD" or self.send_body_for_head_request:
             for item in self.iter_content():
                 self.writer.write_content(item)
 
@@ -373,6 +379,17 @@ class ResponseWriter(object):
         if not self._response.explicit_flush:
             self.flush()
 
+    def write_default_headers(self):
+        for name, f in [("Server", self._handler.version_string),
+                        ("Date", self._handler.date_time_string)]:
+            if name.lower() not in self._headers_seen:
+                self.write_header(name, f())
+
+        if (type(self._response.content) in (str, unicode) and
+            "content-length" not in self._headers_seen):
+            #Would be nice to avoid double-encoding here
+            self.write_header("Content-Length", len(self.encode(self._response.content)))
+
     def end_headers(self):
         """Finish writing headers and write the seperator.
 
@@ -381,15 +398,7 @@ class ResponseWriter(object):
         to the response headers"""
 
         if self._response.add_required_headers:
-            for name, f in [("Server", self._handler.version_string),
-                            ("Date", self._handler.date_time_string)]:
-                if name.lower() not in self._headers_seen:
-                    self.write_header(name, f())
-
-            if (type(self._response.content) in (str, unicode) and
-                "content-length" not in self._headers_seen):
-                #Would be nice to avoid double-encoding here
-                self.write_header("Content-Length", len(self.encode(self._response.content)))
+            self.write_default_headers()
 
         self.write("\r\n")
         if not self._response.explicit_flush:
