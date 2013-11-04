@@ -1,9 +1,0 @@
-Need a HTTP server with at least the following features:
-
-* Suitable to run on individual test slaves and over the public internet (sadly)
-* Support plain TCP and SSL servers
-* Serves static files with the minimum of configuration
-* Allows headers to be overwritten on a per-file and per-directory basis (not sure if we need to recurse up the tree?)
-* Full customisation of headers sent (e.g. altering or omitting "mandatory" headers)
-* Simple per-client state (e.g. POST /data/key?value=foo, GET /data/key with some sort of transparent session handling and a timeout for keeping the value. Mochitest has this, but in a different way, and is single user. Need to check how it is used).
-* Complex logic in tests (e.g. a different response conditional on whether a previous request for the same resource has been made).
