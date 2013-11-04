@@ -298,7 +298,7 @@ class WebTestHttpd(object):
     :param use_ssl: Use a SSL server if no explicit server_cls is supplied
     :param certificate: Certificate file to use if ssl is enabled
     :param router_cls: Router class to use when matching URLs to handlers
-    :param routes: Document root for serving files
+    :param doc_root: Document root for serving files
     :param routes: List of routes with which to initalize the router
     :param rewriter_cls: Class to use for request rewriter
     :param rewrites: List of rewrites with which to initalize the rewriter_cls

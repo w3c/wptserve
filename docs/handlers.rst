@@ -13,23 +13,15 @@ the request. If a handler writes to the output stream then the
 server will not attempt additional writes, i.e. the choice to write
 directly in the handler or not is all-or-nothing.
 
-By default there are three types of handler provided:
+A number of general-purpose handler functions are provided by default:
 
 Python Handlers
 ---------------
 
-A python handler executes raw python code (and is therefore unsafe
-to run in an untrusted environment). It is expected that
-`request.path` points to a file containing python code that provides
-a function `main` with the signature::
-
-  main(request, response)
-
-This function may operate in (a combination of) two ways. It can
-manipulate the response directly, including writing directly to
-the socket. It can also simply return values which are then used to
-populate the response. There are three possible sets of values
-that may be returned::
+Python handlers are functions which provide a higher-level API over
+manually updating the response object, by causing the return value of
+the function to provide (part of) the response. There are three
+possible sets of values that may be returned::
 
 
   (status, headers, content)
@@ -38,7 +30,61 @@ that may be returned::
 
 Here `status` is either a tuple (status code, message) or simply a
 integer status code, `headers` is a list of (field name, value) pairs,
-and `content` is a string or an iterable returning strings.
+and `content` is a string or an iterable returning strings. Of course
+such a function may also update the response manually. For example one
+may use `response.headers.set` to set a response header, and only
+return the content. One may even use this kind of handler, but
+manuipulate the output socket directly, in which case the return value of
+the function, and the properties of the respose object, will be
+ignored.
+
+The most common way to make a user function into a python handler is
+to use the provided `wptserve.handlers.handler` decorator::
+
+  from wptserve.handlers import handler
+
+  @handler
+  def test(request, response):
+      return [("X-Test": "PASS"), ("Content-Type", "text/plain")], "test"
+
+  #Later, assuming we have a Router object called 'router'
+
+  router.register("GET", "/test", test)
+
+JSON Handlers
+-------------
+
+This is a specialisation of the python handler type specifically
+designed to facilitate providing JSON responses. The API is largely
+the same as for a normal python handler, but the `content` part of the
+return value is JSON encoded, and a default Content-Type header of
+`application/json` is added. Again this handler is usually used as a
+decorator::
+
+  from wptserve.handlers import json_handler
+
+  @json_handler
+  def test(request, response):
+      return {"test": "PASS"}
+
+Python File Handlers
+--------------------
+
+Python file handlers are designed to provide a vaugely PHP-like interface
+where each resource corresponds to a particular python file on the
+filesystem. Typically this is hooked up to a route like ``("*",
+".*\.py", python_file_handler)``, meaning that any .py file will be
+treated as a handler file (note that this makes python files unsafe in
+much the same way that .php files are when using PHP).
+
+Unlike PHP, the python files don't work by outputting text to stdout
+from the global scope. Instead they must define a single function
+`main` with the signature::
+
+  main(request, response)
+
+This function then behaves just like those described in :ref:`Python
+Handlers` above.
 
 asis Handlers
 -------------

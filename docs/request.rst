@@ -6,5 +6,5 @@ Request object.
 :mod:`request`
 ---------------
 
-.. automodule:: request
+.. automodule:: wptserve.request
    :members:
