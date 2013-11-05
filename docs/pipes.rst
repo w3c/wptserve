@@ -11,8 +11,8 @@ functions are applied to the response from left to right. For example::
 This would serve bytes 1 to 199, inclusive, of foo.txt with the HTTP status
 code 404.
 
-:mod:`pipes`
+:mod:`Interface <pipes>`
 -------------------------------------------------
 
-.. automodule:: pipes
+.. automodule:: wptserve.pipes
    :members:

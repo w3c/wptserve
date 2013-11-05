@@ -33,14 +33,16 @@ At the high level, the design of the server is based around similar
 concepts to those found in common web frameworks like Django, Pyramid
 or Flask. In particular the lifecycle of a typical request will be
 familiar to users of these systems. Incoming requests are parsed and a
-:doc:`Request <request>` object is constructed. This object is passed to a
-:ref:`Router <wptserve.server.Router>` instance, which is responsible for mapping the request
-method and path to a handler function. This handler is passed two
-arguments; the request object and a :doc:`Response <response>` object. In cases
-where only simple responses are required, the handler function may
-fill in the properties of the response object and the server will take
-care of constructing the response. However each Response also contains
-a ResponseWriter which can be used to directly control the TCP socket.
+:doc:`Request <request>` object is constructed. This object is passed
+to a :ref:`Router <wptserve.server.Router>` instance, which is
+responsible for mapping the request method and path to a handler
+function. This handler is passed two arguments; the request object and
+a :doc:`Response <response>` object. In cases where only simple
+responses are required, the handler function may fill in the
+properties of the response object and the server will take care of
+constructing the response. However each Response also contains a
+:ref:`ResponseWriter <wptserve.response.ResponseWriter>` which can be
+used to directly control the TCP socket.
 
 By default there are several built-in handler functions that provide a
 higher level API than direct manipulation of the Response

@@ -18,6 +18,7 @@ Contents:
 
    introduction
    server
+   router
    request
    response
    stash

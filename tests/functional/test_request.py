@@ -63,12 +63,12 @@ class TestRequest(TestUsingServer):
     def test_route_match(self):
         @wptserve.handlers.handler
         def handler(request, response):
-            return " ".join(request.route_match.groups())
+            return request.route_match["match"] + " " + request.route_match["*"]
 
-        route = ("GET", "/test/match_(.*)", handler)
+        route = ("GET", "/test/{match}_*", handler)
         self.server.router.register(*route)
-        resp = self.request("/test/match_route")
-        self.assertEquals("route", resp.read())
+        resp = self.request("/test/some_route")
+        self.assertEquals("some route", resp.read())
 
 class TestAuth(TestUsingServer):
     def test_auth(self):

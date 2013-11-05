@@ -25,7 +25,7 @@ A typical example of using a stash to store state might be::
           return key
 
 :mod:`Interface <stash>`
----------------
+------------------------
 
 .. automodule:: wptserve.stash
    :members:

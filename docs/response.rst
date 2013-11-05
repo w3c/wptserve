@@ -24,8 +24,8 @@ write a similar response but with more explicit control as follows::
       time.sleep(1)
       response.writer.write("example content")
 
-:mod:`response`
----------------
+:mod:`Interface <response>`
+---------------------------
 
 .. automodule:: wptserve.response
    :members:

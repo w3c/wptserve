@@ -322,11 +322,11 @@ def sub(request, response):
     "GET" is a dictionary of query parameters supplied with the request.
 
     So for example in a setup running on localhost with a www
-    subdomain and a http server on ports 80 and 81:
+    subdomain and a http server on ports 80 and 81::
 
-    {{host}} => localhost
-    {{domains[www]}} => www.localhost
-    {{ports[http][1]}} => 81
+      {{host}} => localhost
+      {{domains[www]}} => www.localhost
+      {{ports[http][1]}} => 81
     """
     #TODO: There basically isn't any error handling here
     content = resolve_content(response)

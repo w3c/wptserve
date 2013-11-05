@@ -14,8 +14,10 @@ import urlparse
 
 from request import Server, Request
 from response import Response
-from utils import HTTPException
+from router import Router
 import routes
+from utils import HTTPException
+
 
 logger = logging.getLogger("wptserve")
 logger.setLevel(logging.DEBUG)
@@ -52,66 +54,6 @@ The handler functions are responsible for either populating the
 fields of the response object, which will then be written when the
 handler returns, or for directly writing to the output stream.
 """
-
-
-class Router(object):
-    """Object for matching handler functions to requests.
-
-    :param doc_root: Absolute path of the filesystem location from
-                     which to serve tests
-    :param routes: Initial routes to add; a list of three item tuples
-                   (method, path_regexp_string, handler_function), defined
-                   as for register()
-    """
-
-    def __init__(self, doc_root, routes):
-        self.doc_root = doc_root
-        self.routes = []
-        for route in reversed(routes):
-            self.register(*route)
-
-    def register(self, methods, path_regexp, handler):
-        """Register a handler for a set of paths.
-
-        :param methods: Set of methods this should match. "*" is a
-                        special value indicating that all methods should
-                        be matched.
-
-        :param path_regexp: String that can be compiled into a regexp that
-                            is matched against the request path. The regexp
-                            is automatically anchored to the start and end
-                            of the url by prepending a "^" and appending a
-                            "$", so these should not be supplied.
-
-        :param handler: Function that will be called to process matching
-                        requests. This must take two parameters, the request
-                        object and the response object.
-        """
-        if type(methods) in types.StringTypes:
-            methods = [methods]
-        for method in methods:
-            self.routes.append((method, re.compile("^%s$" % path_regexp), handler))
-
-    def get_handler(self, request):
-        """Get a handler for a request or None if there is no handler.
-
-        :param request: Request to get a handler for.
-        :rtype: Callable or None
-        """
-        for method, regexp, handler in reversed(self.routes):
-            if (request.method == method or
-                method == "*" or
-                (request.method == "HEAD" and method == "GET")):
-                m = regexp.match(request.url_parts.path)
-                if m:
-                    if not hasattr(handler, "__class__"):
-                        name = handler.__name__
-                    else:
-                        name = handler.__class__.__name__
-                    logger.debug("Found handler %s" % name)
-                    request.route_match = m
-                    return handler
-        return None
 
 
 class RequestRewriter(object):

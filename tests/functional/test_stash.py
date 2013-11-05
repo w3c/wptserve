@@ -5,6 +5,7 @@ import json
 import uuid
 
 import wptserve
+from wptserve.router import any_method
 from base import TestUsingServer, doc_root
 
 class TestResponseSetCookie(TestUsingServer):
@@ -21,7 +22,7 @@ class TestResponseSetCookie(TestUsingServer):
             return data
 
         id = str(uuid.uuid4())
-        route = ("*", "/test/put_take", handler)
+        route = (any_method, "/test/put_take", handler)
         self.server.router.register(*route)
 
         resp = self.request(route[1], method="POST", body={"id": id, "data": "Sample data"})
