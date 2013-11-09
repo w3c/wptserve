@@ -523,6 +523,8 @@ class MultiDict(dict):
     @classmethod
     def from_field_storage(cls, fs):
         self = cls()
+        if fs.list is None:
+            return self
         for key in fs:
             values = fs[key]
             if not isinstance(values, list):
