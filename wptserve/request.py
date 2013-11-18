@@ -195,7 +195,7 @@ class Request(object):
 
     .. attribute:: headers
 
-    RequestHeaders object proividing a dictionary-like representation of
+    RequestHeaders object providing a dictionary-like representation of
     the request headers.
 
     .. attribute:: body
