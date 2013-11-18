@@ -42,7 +42,7 @@ master_doc = 'index'
 
 # General information about the project.
 project = u'wptserve'
-copyright = u'2013, James Graham'
+copyright = u'2013, Mozilla Foundation and other wptserve contributers'
 
 # The version info for the project you're documenting, acts as replacement for
 # |version| and |release|, also used in various other places throughout the
