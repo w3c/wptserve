@@ -244,6 +244,8 @@ class WebTestHttpd(object):
     :param routes: List of routes with which to initalize the router
     :param rewriter_cls: Class to use for request rewriter
     :param rewrites: List of rewrites with which to initalize the rewriter_cls
+    :param config: Dictionary holding environment configuration settings for
+                   handlers to read, or None to use the default values.
 
     HTTP server designed for testing scenarios.
 
@@ -254,7 +256,8 @@ class WebTestHttpd(object):
                  server_cls=None, handler_cls=WebTestRequestHandler,
                  use_ssl=False, certificate=None, router_cls=Router,
                  doc_root=os.curdir, routes=routes.routes,
-                 rewriter_cls=RequestRewriter, rewrites=None):
+                 rewriter_cls=RequestRewriter, rewrites=None,
+                 config=None):
 
         self.host = host
 
@@ -273,6 +276,7 @@ class WebTestHttpd(object):
                                 handler_cls,
                                 self.router,
                                 self.rewriter,
+                                config=config,
                                 use_ssl=use_ssl,
                                 certificate=certificate)
         self.started = False
