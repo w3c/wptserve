@@ -391,6 +391,13 @@ class RequestHeaders(dict):
     def __contains__(self, key):
         return dict.__contains__(self, key.lower())
 
+    def iteritems(self):
+        for item in self:
+            yield item, self[item]
+
+    def itervalues(self):
+        for item in self:
+            yield self[item]
 
 class CookieValue(object):
     """Representation of cookies.
