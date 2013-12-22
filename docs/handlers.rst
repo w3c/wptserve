@@ -30,13 +30,12 @@ possible sets of values that may be returned::
 
 Here `status` is either a tuple (status code, message) or simply a
 integer status code, `headers` is a list of (field name, value) pairs,
-and `content` is a string or an iterable returning strings. Of course
-such a function may also update the response manually. For example one
-may use `response.headers.set` to set a response header, and only
-return the content. One may even use this kind of handler, but
-manuipulate the output socket directly, in which case the return value of
-the function, and the properties of the respose object, will be
-ignored.
+and `content` is a string or an iterable returning strings. Such a
+function may also update the response manually. For example one may
+use `response.headers.set` to set a response header, and only return
+the content. One may even use this kind of handler, but manuipulate
+the output socket directly, in which case the return value of the
+function, and the properties of the respose object, will be ignored.
 
 The most common way to make a user function into a python handler is
 to use the provided `wptserve.handlers.handler` decorator::
@@ -73,7 +72,7 @@ Python File Handlers
 Python file handlers are designed to provide a vaugely PHP-like interface
 where each resource corresponds to a particular python file on the
 filesystem. Typically this is hooked up to a route like ``("*",
-".*\.py", python_file_handler)``, meaning that any .py file will be
+"*.py", python_file_handler)``, meaning that any .py file will be
 treated as a handler file (note that this makes python files unsafe in
 much the same way that .php files are when using PHP).
 

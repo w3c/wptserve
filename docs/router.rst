@@ -23,8 +23,8 @@ follow a custom syntax intended to make matching URLs straightforward
 and, in particular, to be easier to use than raw regexp for URL
 matching. There are three possible components of a match expression:
 
- * Literals. These match any character. The special characters *, {
-   and } must be escaped by prefixing them with a \.
+* Literals. These match any character. The special characters *, {
+  and } must be escaped by prefixing them with a \.
 
 * Match groups. These match any character other than / and save the
   result as a named group. They are delimited by curly braces; for
@@ -42,7 +42,7 @@ Path expressions always match the entire request path and a leading /
 in the expression is implied even if it is not explicitly
 provided. This means that `/foo` and `foo` are equivalent.
 
-For example, the following patterm matches all requests for resources with the
+For example, the following pattern matches all requests for resources with the
 extension `.py`::
 
   *.py
@@ -53,7 +53,7 @@ group::
 
   /resources/{name}.html
 
-The groups, including anything that matches a `*` are avaliable in the
+The groups, including anything that matches a `*` are available in the
 request object through the `route_match` property. This is a
 dictionary mapping the group names, and any match for `*` to the
 matching part of the route. For exmple, given a route::

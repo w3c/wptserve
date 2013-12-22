@@ -7,6 +7,8 @@ content_types = utils.invert_dict({"text/html": ["htm", "html"],
                                    "text/plain": ["txt", "md"],
                                    "text/xml": ["xml"],
                                    "image/svg+xml": ["svg"],
+                                   "image/jpeg": ["jpg", "jpeg"],
+                                   "image/png": ["png"],
                                    "text/event-stream": ["event_stream"],
                                    "text/cache-manifest": ["manifest"]})
 

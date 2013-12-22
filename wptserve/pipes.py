@@ -312,14 +312,19 @@ def sub(request, response):
 
     The format is a very limited template language. Substitutions are
     enclosed by {{ and }}. There are 5 fields "host", "domains",
-    "ports", "headers" and "GET".
+    "ports", "headers" and "GET":
 
-    "host" is just a simple string value and represents the primary
-     host from which the tests are being run.
-    "domains" is a dictionary of avaliable domains indexed by subdomain name.
-    "ports" is a dictionary of lists of ports indexed by protocol.
-    "headers" is a dictionary of HTTP headers in the request
-    "GET" is a dictionary of query parameters supplied with the request.
+    host
+      A simple string value and represents the primary host from which the
+      tests are being run.
+    domains
+      A dictionary of avaliable domains indexed by subdomain name.
+    ports
+      A dictionary of lists of ports indexed by protocol.
+    headers
+      A dictionary of HTTP headers in the request
+    GET
+      A dictionary of query parameters supplied with the request.
 
     So for example in a setup running on localhost with a www
     subdomain and a http server on ports 80 and 81::

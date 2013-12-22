@@ -1,7 +1,7 @@
 Pipes
 ======
 
-Pipe are functions that may be used when serving files to alter parts
+Pipes are functions that may be used when serving files to alter parts
 of the response. These are invoked by adding a pipe= query parameter
 taking a | separated list of pipe functions and parameters. The pipe
 functions are applied to the response from left to right. For example::
@@ -11,10 +11,10 @@ functions are applied to the response from left to right. For example::
 This would serve bytes 1 to 199, inclusive, of foo.txt with the HTTP status
 code 404.
 
-There are several bulit-in pipe functions, and it is possible to add
+There are several built-in pipe functions, and it is possible to add
 more using the `@pipe` decorator on a function, if required.
 
-Built In Pipes
+Built-In Pipes
 --------------
 
 sub
@@ -26,16 +26,25 @@ request into the response.
 Substitutions are marked in a file using a block delimited by `{{`
 and `}}`. Inside the block the following variables are avalible:
 
-* `{{host}}` - the host name of the server exclusing any subdomain part.
-* `{{domains[]}}` - the domain name of a particular subdomain
-    e.g. `{{domains[www]}}` for the `www` subdomain.
-* `{{ports[][]}}` - The port number of servers, by protocol
-    e.g. `{{ports[http][0]}}` for the first (and, depending on setup,
-    possibly only) http server
-* `{{headers[]}}` - The HTTP headers in the request
-    e.g. `{{headers[X-Test]}}` for a hypothetical `X-Test` header.
-* `{{GET[]}}` - The query parameters for the request
-    e.g. `{{GET[id]}}` for an id parameter sent with the request.
+  `{{host}}`
+    The host name of the server exclusing any subdomain part.
+
+  `{{domains[]}}`
+    The domain name of a particular subdomain
+      e.g. `{{domains[www]}}` for the `www` subdomain.
+
+  `{{ports[][]}}`
+    The port number of servers, by protocol
+      e.g. `{{ports[http][0]}}` for the first (and, depending on setup,
+      possibly only) http server
+
+  `{{headers[]}}`
+    The HTTP headers in the request
+      e.g. `{{headers[X-Test]}}` for a hypothetical `X-Test` header.
+
+  `{{GET[]}}`
+    The query parameters for the request
+      e.g. `{{GET[id]}}` for an id parameter sent with the request.
 
 So, for example, to write a javascript file called `xhr.js` that
 depends on the host name of the server, without hardcoding, one might
