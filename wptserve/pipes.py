@@ -322,7 +322,7 @@ def sub(request, response):
     ports
       A dictionary of lists of ports indexed by protocol.
     headers
-      A dictionary of HTTP headers in the request
+      A dictionary of HTTP headers in the request.
     GET
       A dictionary of query parameters supplied with the request.
 

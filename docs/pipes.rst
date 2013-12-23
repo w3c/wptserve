@@ -20,14 +20,14 @@ Built-In Pipes
 sub
 ~~~
 
-Used to subsitute variables from the server environment, or from the
+Used to substitute variables from the server environment, or from the
 request into the response.
 
 Substitutions are marked in a file using a block delimited by `{{`
-and `}}`. Inside the block the following variables are avalible:
+and `}}`. Inside the block the following variables are available:
 
   `{{host}}`
-    The host name of the server exclusing any subdomain part.
+    The host name of the server excluding any subdomain part.
 
   `{{domains[]}}`
     The domain name of a particular subdomain

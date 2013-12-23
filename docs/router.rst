@@ -14,7 +14,7 @@ Routes are represented by a three item tuple::
 
 `methods` is either a string or a list of strings indicating the HTTP
 methods to match. In cases where all methods should match there is a
-special sentinal value `any_method` provided as a property of the
+special sentinel value `any_method` provided as a property of the
 `router` module that can be used.
 
 `path_match` is an expression that will be evaluated against the
@@ -56,7 +56,7 @@ group::
 The groups, including anything that matches a `*` are available in the
 request object through the `route_match` property. This is a
 dictionary mapping the group names, and any match for `*` to the
-matching part of the route. For exmple, given a route::
+matching part of the route. For example, given a route::
 
   /api/{sub_api}/*
 
@@ -66,7 +66,7 @@ be::
   {"sub_api": "html", "*": "html/test.html"}
 
 `handler` is a function taking a request and a response object that is
-reponsible for constructing the response to the HTTP request. See
+responsible for constructing the response to the HTTP request. See
 :doc:`handlers` for more details on handler functions.
 
 :mod:`Interface <wptserve>`
