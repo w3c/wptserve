@@ -121,7 +121,7 @@ class Router(object):
                             `/api/test/test2/data.json`, but not `/api/test/data.py`.
 
                             The match groups, and anything matching the * are made
-                            avaliable in the request object as a dictionary through
+                            available in the request object as a dictionary through
                             the route_match property. For example, given the route
                             pattern above and the path `/api/test/data.json`, the
                             route_match property would contain::

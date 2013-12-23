@@ -16,7 +16,7 @@ class Stash(object):
     uuid is a unique id. In addition, the store is write-once, read-once,
     i.e. the value associated with a particular key cannot be changed once
     written and the read operation (called "take") is destructive. Taken together,
-    these properties make it difficult for data to accidentially leak
+    these properties make it difficult for data to accidentally leak
     between different resources or different requests for the same
     resource.
 

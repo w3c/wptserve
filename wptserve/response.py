@@ -391,7 +391,7 @@ class ResponseWriter(object):
             self.write_header("Content-Length", len(self.encode(self._response.content)))
 
     def end_headers(self):
-        """Finish writing headers and write the seperator.
+        """Finish writing headers and write the separator.
 
         Unless add_required_headers on the response is False,
         this will also add HTTP-mandated headers that have not yet been supplied

@@ -191,7 +191,7 @@ def trickle(request, response, delays):
     """Send the response in parts, with time delays.
 
     :param delays: A string of delays and amounts, in bytes, of the
-                   response to send. Each component is seperated by
+                   response to send. Each component is separated by
                    a colon. Amounts in bytes are plain integers, whilst
                    delays are floats prefixed with a single d e.g.
                    d1:100:d2
@@ -318,7 +318,7 @@ def sub(request, response):
       A simple string value and represents the primary host from which the
       tests are being run.
     domains
-      A dictionary of avaliable domains indexed by subdomain name.
+      A dictionary of available domains indexed by subdomain name.
     ports
       A dictionary of lists of ports indexed by protocol.
     headers

@@ -354,7 +354,7 @@ class RequestHeaders(dict):
 
     def __getitem__(self, key):
         """Get all headers of a certain (case-insensitive) name. If there is
-        more than one, the values are returned comma seperated"""
+        more than one, the values are returned comma separated"""
         values = dict.__getitem__(self, key.lower())
         if len(values) == 1:
             return values[0]
@@ -366,7 +366,7 @@ class RequestHeaders(dict):
 
     def get(self, key, default=None):
         """Get a string representing all headers with a particular value,
-        with multiple headers seperated by a comma. If no header is found
+        with multiple headers separated by a comma. If no header is found
         return a default value
 
         :param key: The header name to look up (case-insensitive)
@@ -472,7 +472,7 @@ class CookieValue(object):
 
 
 class MultiDict(dict):
-    """Dicionary type that holds multiple values for each
+    """Dictionary type that holds multiple values for each
     key"""
     #TODO: this should perhaps also order the keys
     def __init__(self):

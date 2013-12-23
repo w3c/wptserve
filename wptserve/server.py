@@ -69,7 +69,7 @@ class RequestRewriter(object):
             self.register(*rule)
 
     def register(self, methods, input_path, output_path):
-        """Register a rewrite rul.
+        """Register a rewrite rule.
 
         :param methods: Set of methods this should match. "*" is a
                         special value indicating that all methods should
@@ -241,9 +241,9 @@ class WebTestHttpd(object):
     :param certificate: Certificate file to use if ssl is enabled
     :param router_cls: Router class to use when matching URLs to handlers
     :param doc_root: Document root for serving files
-    :param routes: List of routes with which to initalize the router
+    :param routes: List of routes with which to initialize the router
     :param rewriter_cls: Class to use for request rewriter
-    :param rewrites: List of rewrites with which to initalize the rewriter_cls
+    :param rewrites: List of rewrites with which to initialize the rewriter_cls
     :param config: Dictionary holding environment configuration settings for
                    handlers to read, or None to use the default values.
 
@@ -287,7 +287,7 @@ class WebTestHttpd(object):
         """Start the server.
 
         :param block: True to run the server on the current thread, blocking,
-                      False to run on a seperate thread."""
+                      False to run on a separate thread."""
         logger.info("Starting http server on %s:%s" % (self.host, self.port))
         self.started = True
         if block:
