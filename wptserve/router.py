@@ -111,7 +111,7 @@ class Router(object):
                              a request path matches this route. Match patterns
                              consist of either literal text, match groups,
                              denoted {name}, which match any character except /,
-                             and, at most one *, which matches any character.
+                             and, at most one \*, which matches any character.
                              If there is no leading "/" on the pattern, this is
                              automatically implied. For example::
 

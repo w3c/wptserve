@@ -23,8 +23,8 @@ follow a custom syntax intended to make matching URLs straightforward
 and, in particular, to be easier to use than raw regexp for URL
 matching. There are three possible components of a match expression:
 
-* Literals. These match any character. The special characters *, {
-  and } must be escaped by prefixing them with a \.
+* Literals. These match any character. The special characters \*, \{
+  and \} must be escaped by prefixing them with a \\.
 
 * Match groups. These match any character other than / and save the
   result as a named group. They are delimited by curly braces; for
