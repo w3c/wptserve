@@ -24,6 +24,8 @@ write a similar response but with more explicit control as follows::
       time.sleep(1)
       response.writer.write("example content")
 
+.. _response.Interface:
+
 :mod:`Interface <response>`
 ---------------------------
 

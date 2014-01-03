@@ -14,7 +14,7 @@ run on port 8080 until it is killed::
   httpd.start(block=True)
 
 :mod:`Interface <wptserve>`
----------------
+---------------------------
 
 .. automodule:: wptserve.server
    :members:

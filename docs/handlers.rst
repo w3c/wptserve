@@ -15,6 +15,8 @@ directly in the handler or not is all-or-nothing.
 
 A number of general-purpose handler functions are provided by default:
 
+.. _handlers.Python:
+
 Python Handlers
 ---------------
 
@@ -82,8 +84,8 @@ from the global scope. Instead they must define a single function
 
   main(request, response)
 
-This function then behaves just like those described in :ref:`Python
-Handlers` above.
+This function then behaves just like those described in
+:ref:`handlers.Python` above.
 
 asis Handlers
 -------------

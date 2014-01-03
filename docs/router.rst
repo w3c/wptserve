@@ -69,6 +69,8 @@ be::
 responsible for constructing the response to the HTTP request. See
 :doc:`handlers` for more details on handler functions.
 
+.. _router.Interface:
+
 :mod:`Interface <wptserve>`
 ---------------------------
 
