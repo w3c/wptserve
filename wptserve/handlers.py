@@ -76,6 +76,8 @@ class FileHandler(object):
         try:
             #This is probably racy with some other process trying to change the file
             file_size = os.stat(path).st_size
+            last_modified = response.writer._handler.date_time_string(os.stat(path).st_mtime)
+            response.headers.set("Last-Modified", last_modified)
             response.headers.update(self.get_headers(path))
             if "Range" in request.headers:
                 try:
