@@ -30,7 +30,9 @@ def guess_content_type(path):
 class DirectoryHandler(object):
     def __call__(self, request, response):
         path = request.filesystem_path
-
+        return self.serve_directory(path, request, response)
+        
+    def serve_directory(self, path, request, response):
         assert os.path.isdir(path)
 
         response.headers = [("Content-Type", "text/html")]
@@ -70,9 +72,11 @@ directory_handler = DirectoryHandler()
 class FileHandler(object):
     def __call__(self, request, response):
         path = request.filesystem_path
+        return self.serve_file(path, request, response)
 
+    def serve_file(self, path, request, response):
         if os.path.isdir(path):
-            return directory_handler(request, response)
+            return directory_handler.serve_directory(path, request, response)
         try:
             #This is probably racy with some other process trying to change the file
             file_size = os.stat(path).st_size
