@@ -1,8 +1,11 @@
 import uuid
+import logging
 
 #TODO: Consider expiring values after some fixed time for long-running
 #servers
 
+logger = logging.getLogger("wptserve")
+logger.setLevel(logging.DEBUG)
 
 class Stash(object):
     """Key-value store for persisting data across HTTP requests.
@@ -27,7 +30,7 @@ class Stash(object):
     def __init__(self, default_path):
         self.default_path = default_path
 
-    def put(self, key, value, path=None):
+    def put(self, key, value, path=None, overwrite=False):
         """Place a value in the stash.
 
         :param key: A UUID to use as the data's key.
@@ -37,7 +40,7 @@ class Stash(object):
         if path is None:
             path = self.default_path
         if path not in self.data:
-            self.data[path] = PathStash(path)
+            self.data[path] = PathStash(path, overwrite)
 
         self.data[path][key] = value
 
@@ -58,17 +61,22 @@ class Stash(object):
 
 
 class PathStash(dict):
-    def __init__(self, path):
+    def __init__(self, path, overwrite):
         self.path = path
+	self.overwrite = overwrite
 
     def __setitem__(self, key, value):
         key = uuid.UUID(key)
         if value is None:
             raise ValueError("Stash value may not be set to None")
         if key in self:
-            raise StashError("Tried to overwrite existing stash value "
-                             "for path %s and key %s (old value was %s, new value is %s)" %
-                             (self.path, key, self[str(key)], value))
+            if self.overwrite:
+	      logger.debug("Overwrote previous stashed value")
+              dict.__setitem__(self, key, value)
+	    else:
+              raise StashError("Tried to overwrite existing stash value "
+                               "for path %s and key %s (old value was %s, new value is %s)" %
+                               (self.path, key, self[str(key)], value))
         else:
             dict.__setitem__(self, key, value)
 
