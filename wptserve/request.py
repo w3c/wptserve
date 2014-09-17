@@ -275,6 +275,7 @@ class Request(object):
         self._POST = None
         self._cookies = None
         self._auth = None
+        self._base_path = None
         self._filesystem_path = None
 
         self.server = Server(self)
@@ -339,16 +340,30 @@ class Request(object):
         return self._auth
 
     @property
+    def base_path(self):
+        if self._base_path is None:
+            return self.doc_root
+        return self._base_path
+
+    @base_path.setter
+    def base_path(self, value):
+        self._base_path = value
+
+    @property
     def filesystem_path(self):
         if self._filesystem_path is None:
-            path = self.url_parts.path
+            if "*" in self.route_match:
+                path = self.route_match["*"]
+            else:
+                path = self.url_parts.path
+
             if path.startswith("/"):
                 path = path[1:]
 
             if ".." in path:
                 raise HTTPException(500)
 
-            self._filesystem_path = os.path.join(self.doc_root, path)
+            self._filesystem_path = os.path.join(self.base_path, path)
         logger.debug(self._filesystem_path)
         return self._filesystem_path
 
