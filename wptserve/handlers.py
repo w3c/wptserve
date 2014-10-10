@@ -27,9 +27,31 @@ def guess_content_type(path):
     return "application/octet-stream"
 
 
+
+def filesystem_path(base_path, request):
+    if base_path is None:
+        base_path = request.doc_root
+
+    if "*" in request.route_match:
+        path = request.route_match["*"]
+    else:
+        path = request.url_parts.path
+
+    if path.startswith("/"):
+        path = path[1:]
+
+    if ".." in path:
+        raise HTTPException(500)
+
+    return os.path.join(base_path, path)
+
+
 class DirectoryHandler(object):
+    def __init__(self, base_path=None):
+        self.base_path = base_path
+
     def __call__(self, request, response):
-        path = request.filesystem_path
+        path = filesystem_path(self.base_path, request)
 
         assert os.path.isdir(path)
 
@@ -68,11 +90,15 @@ directory_handler = DirectoryHandler()
 
 
 class FileHandler(object):
+    def __init__(self, base_path=None):
+        self.base_path = base_path
+        self.directory_handler = DirectoryHandler(self.base_path)
+
     def __call__(self, request, response):
-        path = request.filesystem_path
+        path = filesystem_path(self.base_path, request)
 
         if os.path.isdir(path):
-            return directory_handler(request, response)
+            return self.directory_handler(request, response)
         try:
             #This is probably racy with some other process trying to change the file
             file_size = os.stat(path).st_size
@@ -167,20 +193,25 @@ class FileHandler(object):
 file_handler = FileHandler()
 
 
-def python_script_handler(request, response):
-    path = request.filesystem_path
+class PythonScriptHandler(object):
+    def __init__(self, base_path=None):
+        self.base_path = base_path
 
-    try:
-        environ = {"__file__": path}
-        execfile(path, environ, environ)
-        if "main" in environ:
-            handler = FunctionHandler(environ["main"])
-            handler(request, response)
-        else:
-            raise HTTPException(500)
-    except IOError:
-        raise HTTPException(404)
+    def __call__(self, request, response):
+        path = filesystem_path(self.base_path, request)
 
+        try:
+            environ = {"__file__": path}
+            execfile(path, environ, environ)
+            if "main" in environ:
+                handler = FunctionHandler(environ["main"])
+                handler(request, response)
+            else:
+                raise HTTPException(500, "No main function in script %s" % path)
+        except IOError:
+            raise HTTPException(404)
+
+python_script_handler = PythonScriptHandler()
 
 def FunctionHandler(func):
     def inner(request, response):
@@ -226,14 +257,21 @@ def json_handler(func):
     return FunctionHandler(inner)
 
 
-def as_is_handler(request, response):
-    path = request.filesystem_path
-    try:
-        with open(path) as f:
-            response.writer.write_content(f.read())
-        response.close_connection = True
-    except IOError:
-        raise HTTPException(404)
+class AsIsHandler(object):
+    def __init__(self, base_path=None):
+        self.base_path = base_path
+
+    def __call__(request, response):
+        path = filesystem_path(self.base_path, request)
+
+        try:
+            with open(path) as f:
+                response.writer.write_content(f.read())
+            response.close_connection = True
+        except IOError:
+            raise HTTPException(404)
+
+as_is_handler = AsIsHandler()
 
 
 class ErrorHandler(object):
