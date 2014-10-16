@@ -56,6 +56,22 @@ handler returns, or for directly writing to the output stream.
 """
 
 
+class LoggedSocket(object):
+    def __init__(self, socket):
+        self.__dict__["_socket"] = socket
+
+    def _write(self, value):
+        logger.info(value)
+        return self.__dict__["_socket"].write(value)
+
+    def __getattr__(self, name):
+        if name == "write":
+            return lambda x:self.__class__.__dict__["_write"](self, x)
+        return getattr(self.__dict__["_socket"], name)
+
+    def __setattr__(self, name, value):
+        setattr(self._socket, name, value)
+
 class RequestRewriter(object):
     def __init__(self, rules):
         """Object for rewriting the request path.
@@ -110,8 +126,8 @@ class WebTestServer(ThreadingMixIn, BaseHTTPServer.HTTPServer):
     # Ensure that we don't hang on shutdown waiting for requests
     daemon_threads = True
 
-    def __init__(self, server_address, RequestHandlerClass, router, rewriter, bind_hostname, config=None,
-                 use_ssl=False, certificate=None, **kwargs):
+    def __init__(self, server_address, RequestHandlerClass, router, rewriter, bind_hostname,
+                 config=None, use_ssl=False, certificate=None, **kwargs):
         """Server for HTTP(s) Requests
 
         :param server_address: tuple of (server_name, port)
@@ -184,6 +200,8 @@ class WebTestRequestHandler(BaseHTTPServer.BaseHTTPRequestHandler):
 
     def handle_one_request(self):
         response = None
+        if not isinstance(self.wfile, LoggedSocket):
+            self.wfile = LoggedSocket(self.wfile)
         try:
             self.close_connection = False
             request_line_is_valid = self.get_request_line()
