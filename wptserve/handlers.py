@@ -35,10 +35,7 @@ def filesystem_path(base_path, request, url_base="/"):
     if path.startswith(url_base):
         path = path[len(url_base):]
 
-    if ".." in path:
-        raise HTTPException(404)
-
-    new_path = os.path.join(base_path, path)
+    new_path = os.path.abspath(os.path.join(base_path, path))
 
     # Otherwise setting path to / allows access outside the root directory
     if not new_path.startswith(base_path):
@@ -48,7 +45,7 @@ def filesystem_path(base_path, request, url_base="/"):
 
 class DirectoryHandler(object):
     def __init__(self, base_path=None, url_base="/"):
-        self.base_path = base_path
+        self.base_path = os.path.abspath(base_path) if base_path is not None else None
         self.url_base = url_base
 
     def __call__(self, request, response):
@@ -97,9 +94,12 @@ directory_handler = DirectoryHandler()
 
 class FileHandler(object):
     def __init__(self, base_path=None, url_base="/"):
-        self.base_path = base_path
+        self.base_path = os.path.abspath(base_path) if base_path is not None else None
         self.url_base = url_base
         self.directory_handler = DirectoryHandler(self.base_path)
+
+    def __repr__(self):
+        return "<FileHandler %s %s>" % (self.base_path, self.url_base)
 
     def __call__(self, request, response):
         path = filesystem_path(self.base_path, request, self.url_base)
@@ -203,7 +203,7 @@ file_handler = FileHandler()
 
 class PythonScriptHandler(object):
     def __init__(self, base_path=None, url_base="/"):
-        self.base_path = base_path
+        self.base_path = os.path.abspath(base_path) if base_path is not None else None
         self.url_base = url_base
 
     def __call__(self, request, response):
@@ -268,7 +268,7 @@ def json_handler(func):
 
 class AsIsHandler(object):
     def __init__(self, base_path=None, url_base="/"):
-        self.base_path = base_path
+        self.base_path = os.path.abspath(base_path) if base_path is not None else None
         self.url_base = url_base
 
     def __call__(self, request, response):
