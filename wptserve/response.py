@@ -1,8 +1,8 @@
 from collections import OrderedDict
 from datetime import datetime, timedelta
-import Cookie
+from six.moves import http_cookies as Cookie
 import json
-import types
+import six
 import uuid
 import socket
 
@@ -180,7 +180,9 @@ class Response(object):
         True, the entire content of the file will be returned as a string facilitating
         non-streaming operations like template substitution.
         """
-        if isinstance(self.content, types.StringTypes):
+        if isinstance(self.content, six.text_type):
+            yield self.content.encode('utf-8')
+        elif isinstance(self.content, six.binary_type):
             yield self.content
         elif hasattr(self.content, "read"):
             if read_file:
@@ -260,6 +262,8 @@ class MultipartContent(object):
 
 class MultipartPart(object):
     def __init__(self, data, content_type=None, headers=None):
+        assert isinstance(data, six.binary_type)
+
         self.headers = ResponseHeaders()
 
         if content_type is not None:
@@ -335,7 +339,7 @@ class ResponseHeaders(object):
         self.set(key, value)
 
     def __iter__(self):
-        for key, values in self.data.itervalues():
+        for key, values in six.itervalues(self.data):
             for value in values:
                 yield key, value
 
@@ -400,7 +404,7 @@ class ResponseWriter(object):
             if name.lower() not in self._headers_seen:
                 self.write_header(name, f())
 
-        if (type(self._response.content) in (str, unicode) and
+        if (isinstance(self._response.content, (six.text_type, six.binary_type)) and
             "content-length" not in self._headers_seen):
             #Would be nice to avoid double-encoding here
             self.write_header("Content-Length", len(self.encode(self._response.content)))
@@ -424,7 +428,7 @@ class ResponseWriter(object):
 
     def write_content(self, data):
         """Write the body of the response."""
-        if isinstance(data, types.StringTypes):
+        if isinstance(data, (six.binary_type, six.text_type)):
             self.write(data)
         else:
             self.write_content_file(data)
@@ -457,9 +461,9 @@ class ResponseWriter(object):
 
     def encode(self, data):
         """Convert unicode to bytes according to response.encoding."""
-        if isinstance(data, str):
+        if isinstance(data, six.binary_type):
             return data
-        elif isinstance(data, unicode):
+        elif isinstance(data, six.text_type):
             return data.encode(self._response.encoding)
         else:
             raise ValueError

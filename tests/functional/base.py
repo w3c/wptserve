@@ -5,6 +5,7 @@ import logging
 import os
 import unittest
 
+from six import iteritems
 from six.moves.urllib.parse import urlencode, urlunsplit
 from six.moves.urllib.request import Request as BaseRequest
 from six.moves.urllib.request import urlopen
@@ -27,7 +28,7 @@ class Request(BaseRequest):
         return self.method
 
     def add_data(self, data):
-        if hasattr(data, "iteritems"):
+        if hasattr(data, "items"):
             data = urlencode(data)
         print(data)
         self.add_header("Content-Length", str(len(data)))
@@ -54,7 +55,7 @@ class TestUsingServer(unittest.TestCase):
         if headers is None:
             headers = {}
 
-        for name, value in headers.iteritems():
+        for name, value in iteritems(headers):
             req.add_header(name, value)
 
         if body is not None:
