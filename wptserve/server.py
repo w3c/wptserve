@@ -11,12 +11,12 @@ import traceback
 import types
 import urlparse
 
-import routes as default_routes
-from logger import get_logger
-from request import Server, Request
-from response import Response
-from router import Router
-from utils import HTTPException
+from . import routes as default_routes
+from .logger import get_logger
+from .request import Server, Request
+from .response import Response
+from .router import Router
+from .utils import HTTPException
 
 
 """HTTP server designed for testing purposes.

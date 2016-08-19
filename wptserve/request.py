@@ -5,8 +5,8 @@ import StringIO
 import tempfile
 import urlparse
 
-import stash
-from utils import HTTPException
+from . import stash
+from .utils import HTTPException
 
 missing = object()
 

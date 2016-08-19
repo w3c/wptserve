@@ -1,7 +1,7 @@
 import unittest
 
 import wptserve
-from base import TestUsingServer
+from .base import TestUsingServer
 
 class TestInputFile(TestUsingServer):
     def test_seek(self):

@@ -1,7 +1,7 @@
 import unittest
 
 import wptserve
-from base import TestUsingServer
+from .base import TestUsingServer
 
 class TestResponseSetCookie(TestUsingServer):
     def test_name_value(self):

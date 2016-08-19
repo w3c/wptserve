@@ -2,7 +2,7 @@ import unittest
 from types import MethodType
 
 import wptserve
-from base import TestUsingServer
+from .base import TestUsingServer
 
 def send_body_as_header(self):
     if self._response.add_required_headers:

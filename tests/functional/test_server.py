@@ -2,7 +2,7 @@ import unittest
 import urllib2
 
 import wptserve
-from base import TestUsingServer
+from .base import TestUsingServer
 
 class TestFileHandler(TestUsingServer):
     def test_not_handled(self):
