@@ -9,7 +9,7 @@ from constants import content_types
 from pipes import Pipeline, template
 from ranges import RangeParser
 from request import Authentication
-from response import MultipartContent
+from response import MultipartContent, FileContent
 from utils import HTTPException
 
 __all__ = ["file_handler", "python_script_handler",
@@ -175,10 +175,12 @@ class FileHandler(object):
                     for line in data.splitlines() if line]
 
     def get_data(self, response, path, byte_ranges):
-        """Return either the handle to a file, or a string containing
-        the content of a chunk of the file, if we have a range request."""
+        """
+        Return either a FileContent, a MultipartContent, or a string in the
+        case of a single-chunk range request.
+        """
         if byte_ranges is None:
-            return open(path, 'rb')
+            return FileContent(path)
         else:
             with open(path, 'rb') as f:
                 response.status = 206

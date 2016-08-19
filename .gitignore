@@ -38,3 +38,9 @@ tests/functional/html/*
 .mr.developer.cfg
 .project
 .pydevproject
+
+# PyCharm
+.idea/*
+
+# Visual Studio Code
+.vscode/*

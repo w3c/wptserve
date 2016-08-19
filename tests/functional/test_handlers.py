@@ -12,7 +12,9 @@ class TestFileHandler(TestUsingServer):
         resp = self.request("/document.txt")
         self.assertEquals(200, resp.getcode())
         self.assertEquals("text/plain", resp.info()["Content-Type"])
-        self.assertEquals(open(os.path.join(doc_root, "document.txt"), 'rb').read(), resp.read())
+        content = open(os.path.join(doc_root, "document.txt"), "rb").read()
+        self.assertEquals(resp.info()["Content-Length"], str(len(content)))
+        self.assertEquals(content, resp.read())
 
     def test_headers(self):
         resp = self.request("/with_headers.txt")
@@ -22,15 +24,14 @@ class TestFileHandler(TestUsingServer):
         uuid.UUID(resp.info()["Another-Header"])
         self.assertEquals(resp.info()["Same-Value-Header"], resp.info()["Another-Header"])
 
-
     def test_range(self):
         resp = self.request("/document.txt", headers={"Range":"bytes=10-19"})
         self.assertEquals(206, resp.getcode())
         data = resp.read()
         expected = open(os.path.join(doc_root, "document.txt"), 'rb').read()
         self.assertEquals(10, len(data))
-        self.assertEquals("bytes 10-19/%i" % len(expected), resp.info()['Content-Range'])
-        self.assertEquals("10", resp.info()['Content-Length'])
+        self.assertEquals("bytes 10-19/%i" % len(expected), resp.info()["Content-Range"])
+        self.assertEquals(resp.info()["Content-Length"], "10")
         self.assertEquals(expected[10:20], data)
 
     def test_range_no_end(self):
@@ -39,7 +40,8 @@ class TestFileHandler(TestUsingServer):
         data = resp.read()
         expected = open(os.path.join(doc_root, "document.txt"), 'rb').read()
         self.assertEquals(len(expected) - 10, len(data))
-        self.assertEquals("bytes 10-%i/%i" % (len(expected) - 1, len(expected)), resp.info()['Content-Range'])
+        self.assertEquals("bytes 10-%i/%i" % (len(expected) - 1, len(expected)), resp.info()["Content-Range"])
+        self.assertEquals(resp.info()["Content-Length"], str(len(expected) - 10))
         self.assertEquals(expected[10:], data)
 
     def test_range_no_start(self):
@@ -50,14 +52,16 @@ class TestFileHandler(TestUsingServer):
         self.assertEquals(10, len(data))
         self.assertEquals("bytes %i-%i/%i" % (len(expected) - 10,
                                               len(expected) - 1,
-                                              len(expected)), resp.info()['Content-Range'])
+                                              len(expected)), resp.info()["Content-Range"])
+        self.assertEquals(resp.info()["Content-Length"], "10")
         self.assertEquals(expected[-10:], data)
 
     def test_multiple_ranges(self):
         resp = self.request("/document.txt", headers={"Range":"bytes=1-2,5-7,6-10"})
         self.assertEquals(206, resp.getcode())
         data = resp.read()
-        expected = open(os.path.join(doc_root, "document.txt"), 'rb').read()
+        expected = open(os.path.join(doc_root, "document.txt"), "rb").read()
+        self.assertEquals(resp.info()["Content-Length"], str(len(data)))
         self.assertTrue(resp.info()["Content-Type"].startswith("multipart/byteranges; boundary="))
         boundary = resp.info()["Content-Type"].split("boundary=")[1]
         parts = data.split("--" + boundary)
@@ -83,6 +87,17 @@ class TestFileHandler(TestUsingServer):
 
 
 class TestFunctionHandler(TestUsingServer):
+    def test_empty(self):
+        @wptserve.handlers.handler
+        def handler (request, response):
+            pass
+
+        route = ("GET", "/test/test_empty", handler)
+        self.server.router.register(*route)
+        resp = self.request(route[1])
+        self.assertEquals(200, resp.getcode())
+        self.assertEquals(resp.info()["Content-Length"], "0")
+
     def test_string_rv(self):
         @wptserve.handlers.handler
         def handler(request, response):
@@ -92,7 +107,7 @@ class TestFunctionHandler(TestUsingServer):
         self.server.router.register(*route)
         resp = self.request(route[1])
         self.assertEquals(200, resp.getcode())
-        self.assertEquals("9", resp.info()["Content-Length"])
+        self.assertEquals(resp.info()["Content-Length"], "9")
         self.assertEquals("test data", resp.read())
 
     def test_tuple_2_rv(self):
@@ -104,7 +119,7 @@ class TestFunctionHandler(TestUsingServer):
         self.server.router.register(*route)
         resp = self.request(route[1])
         self.assertEquals(200, resp.getcode())
-        self.assertEquals("4", resp.info()["Content-Length"])
+        self.assertEquals(resp.info()["Content-Length"], "4")
         self.assertEquals("test-value", resp.info()["test-header"])
         self.assertEquals("test", resp.read())
 
@@ -134,33 +149,37 @@ class TestFunctionHandler(TestUsingServer):
         self.assertEquals("test data", resp.read())
 
 class TestJSONHandler(TestUsingServer):
+    test_object = {"data": "test data"}
+    test_object_serialized = json.dumps(test_object)
+
     def test_json_0(self):
         @wptserve.handlers.json_handler
         def handler(request, response):
-            return {"data": "test data"}
+            return TestJSONHandler.test_object
 
         route = ("GET", "/test/test_json_0", handler)
         self.server.router.register(*route)
         resp = self.request(route[1])
         self.assertEquals(200, resp.getcode())
-        self.assertEquals({"data": "test data"}, json.load(resp))
+        self.assertEquals(resp.info()["Content-Length"], str(len(TestJSONHandler.test_object_serialized)))
+        self.assertEquals(TestJSONHandler.test_object, json.load(resp))
 
     def test_json_tuple_2(self):
         @wptserve.handlers.json_handler
         def handler(request, response):
-            return [("Test-Header", "test-value")], {"data": "test data"}
+            return [("Test-Header", "test-value")], TestJSONHandler.test_object
 
         route = ("GET", "/test/test_json_tuple_2", handler)
         self.server.router.register(*route)
         resp = self.request(route[1])
         self.assertEquals(200, resp.getcode())
         self.assertEquals("test-value", resp.info()["test-header"])
-        self.assertEquals({"data": "test data"}, json.load(resp))
+        self.assertEquals(TestJSONHandler.test_object, json.load(resp))
 
     def test_json_tuple_3(self):
         @wptserve.handlers.json_handler
         def handler(request, response):
-            return (202, "Giraffe"), [("Test-Header", "test-value")], {"data": "test data"}
+            return (202, "Giraffe"), [("Test-Header", "test-value")], TestJSONHandler.test_object
 
         route = ("GET", "/test/test_json_tuple_2", handler)
         self.server.router.register(*route)
@@ -168,7 +187,7 @@ class TestJSONHandler(TestUsingServer):
         self.assertEquals(202, resp.getcode())
         self.assertEquals("Giraffe", resp.msg)
         self.assertEquals("test-value", resp.info()["test-header"])
-        self.assertEquals({"data": "test data"}, json.load(resp))
+        self.assertEquals(TestJSONHandler.test_object, json.load(resp))
 
 class TestPythonHandler(TestUsingServer):
     def test_string(self):
@@ -176,6 +195,7 @@ class TestPythonHandler(TestUsingServer):
         self.assertEquals(200, resp.getcode())
         self.assertEquals("text/plain", resp.info()["Content-Type"])
         self.assertEquals("PASS", resp.read())
+        self.assertEquals(resp.info()["Content-Length"], "4")
 
     def test_tuple_2(self):
         resp = self.request("/test_tuple_2.py")
@@ -206,7 +226,8 @@ class TestAsIsHandler(TestUsingServer):
         self.assertEquals("Giraffe", resp.msg)
         self.assertEquals("PASS", resp.info()["X-Test"])
         self.assertEquals("Content", resp.read())
+        self.assertEquals(resp.info()["Content-Length"], "7")
         #Add a check that the response is actually sane
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     unittest.main()

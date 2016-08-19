@@ -90,6 +90,11 @@ whereas::
 Will cause example.html to be returned with both text/html and
 text/plain content-type headers.
 
+Note that if your header value includes a comma, you can escape it
+by prepending the character with a backslash '\'::
+
+    example.html?pipe=header(Cache-Control,no-cache\,no-store,True)
+
 slice
 ~~~~~
 

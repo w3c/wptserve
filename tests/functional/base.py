@@ -5,6 +5,7 @@ import unittest
 import urllib
 import urllib2
 import urlparse
+import uuid
 
 import wptserve
 
@@ -30,6 +31,9 @@ class Request(urllib2.Request):
 
 class TestUsingServer(unittest.TestCase):
     def setUp(self):
+        self.stash = wptserve.stash.StashServer(("localhost", 0), authkey=str(uuid.uuid4()))
+        self.stash.start()
+
         self.server = wptserve.server.WebTestHttpd(host="localhost",
                                                    port=0,
                                                    use_ssl=False,
@@ -39,6 +43,7 @@ class TestUsingServer(unittest.TestCase):
 
     def tearDown(self):
         self.server.stop()
+        self.stash.stop();
 
     def abs_url(self, path, query=None):
         return urlparse.urlunsplit(("http", "%s:%i" % (self.server.host, self.server.port), path, query, None))

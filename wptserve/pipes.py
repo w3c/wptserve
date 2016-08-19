@@ -234,24 +234,32 @@ def trickle(request, response, delays):
     content = resolve_content(response)
     offset = [0]
 
-    def add_content(delays, repeat=False):
-        for i, (item_type, value) in enumerate(delays):
-            if item_type == "bytes":
-                yield content[offset[0]:offset[0] + value]
-                offset[0] += value
-            elif item_type == "delay":
-                time.sleep(value)
-            elif item_type == "repeat":
-                if i != len(delays) - 1:
-                    continue
-                while offset[0] < len(content):
-                    for item in add_content(delays[-(value + 1):-1], True):
-                        yield item
+    class TrickleContent(object):
+        def __init__(self, content, delays):
+            self.size = len(content)
+            self.delays = delays
 
-        if not repeat and offset[0] < len(content):
-            yield content[offset[0]:]
+        def __iter__(self):
+            return self.add_content(self.delays, False)
 
-    response.content = add_content(delays)
+        def add_content(self, delays, repeat):
+            for i, (item_type, value) in enumerate(delays):
+                if item_type == "bytes":
+                    yield content[offset[0]:offset[0] + value]
+                    offset[0] += value
+                elif item_type == "delay":
+                    time.sleep(value)
+                elif item_type == "repeat":
+                    if i != len(delays) - 1:
+                        continue
+                    while offset[0] < len(content):
+                        for item in self.add_content(delays[-(value + 1):-1], True):
+                            yield item
+
+            if not repeat and offset[0] < len(content):
+                yield content[offset[0]:]
+
+    response.content = TrickleContent(content, delays)
     return response
 
 

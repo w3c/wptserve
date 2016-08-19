@@ -5,6 +5,7 @@ import json
 import types
 import uuid
 import socket
+import os
 
 from constants import response_codes
 from logger import get_logger
@@ -182,11 +183,8 @@ class Response(object):
         """
         if isinstance(self.content, types.StringTypes):
             yield self.content
-        elif hasattr(self.content, "read"):
-            if read_file:
-                yield self.content.read()
-            else:
-                yield self.content
+        elif isinstance(self.content, FileContent) and read_file:
+            yield self.content.read()
         else:
             for item in self.content:
                 if hasattr(item, "__call__"):
@@ -228,6 +226,25 @@ class Response(object):
             self.logger.error(message)
 
 
+class FileContent(object):
+    def __init__(self, path):
+        self.path = path
+        self.size = os.stat(path).st_size
+        self.file_chunk_size = 32 * 1024
+
+    def read(self):
+        with open(self.path, "rb") as f:
+            return f.read()
+
+    def __iter__(self):
+        with open(self.path, "rb") as f:
+            while True:
+                buf = f.read(self.file_chunk_size)
+                if not buf:
+                    break
+                yield buf
+
+
 class MultipartContent(object):
     def __init__(self, boundary=None, default_content_type=None):
         self.items = []
@@ -235,20 +252,27 @@ class MultipartContent(object):
             boundary = str(uuid.uuid4())
         self.boundary = boundary
         self.default_content_type = default_content_type
+        self.serialized = None
 
-    def __call__(self):
+    def append_part(self, data, content_type=None, headers=None):
+        if content_type is None:
+            content_type = self.default_content_type
+        self.items.append(MultipartPart(data, content_type, headers))
+
+    def serialize(self):
         boundary = "--" + self.boundary
         rv = ["", boundary]
         for item in self.items:
             rv.append(str(item))
             rv.append(boundary)
         rv[-1] += "--"
-        return "\r\n".join(rv)
+        self.serialized = "\r\n".join(rv)
 
-    def append_part(self, data, content_type=None, headers=None):
-        if content_type is None:
-            content_type = self.default_content_type
-        self.items.append(MultipartPart(data, content_type, headers))
+    @property
+    def size(self):
+        if not self.serialized:
+            self.serialize()
+        return len(self.serialized) if self.serialized else None
 
     def __iter__(self):
         #This is hackish; when writing the response we need an iterable
@@ -256,6 +280,11 @@ class MultipartContent(object):
         #iterable that contains a single callable; the MultipartContent
         #object itself
         yield self
+
+    def __call__(self):
+        if not self.serialized:
+            self.serialize()
+        return self.serialized
 
 
 class MultipartPart(object):
@@ -367,7 +396,6 @@ class ResponseWriter(object):
         self._headers_complete = False
         self.content_written = False
         self.request = response.request
-        self.file_chunk_size = 32 * 1024
 
     def write_status(self, code, message=None):
         """Write out the status line of a response.
@@ -400,10 +428,23 @@ class ResponseWriter(object):
             if name.lower() not in self._headers_seen:
                 self.write_header(name, f())
 
-        if (type(self._response.content) in (str, unicode) and
-            "content-length" not in self._headers_seen):
-            #Would be nice to avoid double-encoding here
-            self.write_header("Content-Length", len(self.encode(self._response.content)))
+        if "content-length" not in self._headers_seen:
+            length = None
+
+            if isinstance(self._response.content, str):
+                length = len(self._response.content)
+            elif isinstance(self._response.content, unicode):
+                #Would be nice to avoid double-encoding here
+                length = len(self.encode(self._response.content))
+            elif hasattr(self._response.content, "size"):
+                #FileContent, MultipartContent, etc.
+                length = self._response.content.size
+            elif len(self._response.content) == 0:
+                #e.g. redirects
+                length = 0
+
+            if length != None:
+                self.write_header("Content-Length", length)
 
     def end_headers(self):
         """Finish writing headers and write the separator.
@@ -426,8 +467,6 @@ class ResponseWriter(object):
         """Write the body of the response."""
         if isinstance(data, types.StringTypes):
             self.write(data)
-        else:
-            self.write_content_file(data)
         if not self._response.explicit_flush:
             self.flush()
 
@@ -440,20 +479,6 @@ class ResponseWriter(object):
         except socket.error:
             # This can happen if the socket got closed by the remote end
             pass
-
-    def write_content_file(self, data):
-        """Write a file-like object directly to the response in chunks.
-        Does not flush."""
-        self.content_written = True
-        while True:
-            buf = data.read(self.file_chunk_size)
-            if not buf:
-                break
-            try:
-                self._wfile.write(buf)
-            except socket.error:
-                break
-        data.close()
 
     def encode(self, data):
         """Convert unicode to bytes according to response.encoding."""

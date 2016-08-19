@@ -27,10 +27,16 @@ class StashServer(object):
         self.manager = None
 
     def __enter__(self):
+        self.start()
+
+    def __exit__(self, *args, **kwargs):
+        self.stop()
+
+    def start(self):
         self.manager, self.address, self.authkey = start_server(self.address, self.authkey)
         store_env_config(self.address, self.authkey)
 
-    def __exit__(self, *args, **kwargs):
+    def stop(self):
         if self.manager is not None:
             self.manager.shutdown()
 
