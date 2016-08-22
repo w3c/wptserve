@@ -237,13 +237,13 @@ class MultipartContent(object):
         self.default_content_type = default_content_type
 
     def __call__(self):
-        boundary = "--" + self.boundary
-        rv = ["", boundary]
+        boundary = b"--" + self.boundary.encode('utf-8')
+        rv = [b"", boundary]
         for item in self.items:
-            rv.append(str(item))
+            rv.append(item.to_bytes())
             rv.append(boundary)
-        rv[-1] += "--"
-        return "\r\n".join(rv)
+        rv[-1] += b"--"
+        return b"\r\n".join(rv)
 
     def append_part(self, data, content_type=None, headers=None):
         if content_type is None:
@@ -275,13 +275,13 @@ class MultipartPart(object):
 
         self.data = data
 
-    def __str__(self):
+    def to_bytes(self):
         rv = []
-        for item in self.headers:
-            rv.append("%s: %s" % item)
-        rv.append("")
+        for (k, v) in self.headers:
+            rv.append(b"%s: %s" % (k.encode('utf-8'), v.encode('utf-8')))
+        rv.append(b"")
         rv.append(self.data)
-        return "\r\n".join(rv)
+        return b"\r\n".join(rv)
 
 
 class ResponseHeaders(object):
