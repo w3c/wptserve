@@ -13,9 +13,7 @@ matrix:
     - python: pypy
       env: TOXENV=pypy
     - python: 3.5
-      env:
-        - TOXENV=py35
-        - TEST_PATH="tests/functional/test_cookies.py tests/functional/test_handlers.py"
+      env: TOXENV=py35
 
 
 install:

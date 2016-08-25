@@ -2,9 +2,8 @@ import base64
 import cgi
 import tempfile
 
-from six import iteritems
+from six import BytesIO, binary_type, iterbytes, iteritems, text_type
 from six.moves import http_cookies as Cookie
-from six.moves import StringIO
 from six.moves.urllib.parse import parse_qsl, urlsplit
 
 from . import stash
@@ -53,7 +52,7 @@ class InputFile(object):
         if length > self.max_buffer_size:
             self._buf = tempfile.TemporaryFile(mode="rw+b")
         else:
-            self._buf = StringIO()
+            self._buf = BytesIO()
 
     @property
     def _buf_position(self):
@@ -69,14 +68,14 @@ class InputFile(object):
         bytes_remaining = min(bytes, self.length - self._buf_position)
 
         if bytes_remaining == 0:
-            return ""
+            return b""
 
         if self._buf_position != self._file_position:
             buf_bytes = min(bytes_remaining, self._file_position - self._buf_position)
             old_data = self._buf.read(buf_bytes)
             bytes_remaining -= buf_bytes
         else:
-            old_data = ""
+            old_data = b""
 
         assert self._buf_position == self._file_position, (
             "Before reading buffer position (%i) didn't match file position (%i)" %
@@ -107,10 +106,10 @@ class InputFile(object):
 
         if self._buf_position < self._file_position:
             data = self._buf.readline(max_bytes)
-            if data.endswith("\n") or len(data) == max_bytes:
+            if data.endswith(b"\n") or len(data) == max_bytes:
                 return data
         else:
-            data = ""
+            data = b""
 
         assert self._buf_position == self._file_position
 
@@ -121,8 +120,8 @@ class InputFile(object):
         while not found:
             readahead = self.read(min(2, max_bytes))
             max_bytes -= len(readahead)
-            for i, c in enumerate(readahead):
-                if c == "\n":
+            for i, c in enumerate(iterbytes(readahead)):
+                if c == ord("\n"):
                     buf.append(readahead[:i+1])
                     found = True
                     break
@@ -130,7 +129,9 @@ class InputFile(object):
                 buf.append(readahead)
             if not readahead or not max_bytes:
                 break
-        new_data = "".join(buf)
+        for b in buf:
+            assert isinstance(b, binary_type), buf
+        new_data = b"".join(buf)
         data += new_data
         self.seek(initial_position + len(new_data))
         return data
@@ -146,6 +147,9 @@ class InputFile(object):
         return rv
 
     def next(self):
+        return self.__next__()
+
+    def __next__(self):
         data = self.readline()
         if data:
             return data
@@ -580,6 +584,8 @@ class Authentication(object):
 
         if "authorization" in headers:
             header = headers.get("authorization")
+            if isinstance(header, binary_type):
+                header = header.decode("utf-8")
             auth_type, data = header.split(" ", 1)
             if auth_type in auth_schemes:
                 self.username, self.password = auth_schemes[auth_type](data)
@@ -587,5 +593,6 @@ class Authentication(object):
                 raise HTTPException(400, "Unsupported authentication scheme %s" % auth_type)
 
     def decode_basic(self, data):
-        decoded_data = base64.decodestring(data)
-        return decoded_data.split(":", 1)
+        assert isinstance(data, text_type)
+        decoded_data = base64.decodestring(data.encode('utf-8'))
+        return decoded_data.split(b":", 1)

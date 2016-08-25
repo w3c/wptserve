@@ -270,9 +270,11 @@ def slice(request, response, start, end=None):
 
 class ReplacementTokenizer(object):
     def ident(scanner, token):
+        assert isinstance(token, six.binary_type)
         return ("ident", token)
 
     def index(scanner, token):
+        assert isinstance(token, six.binary_type)
         token = token[1:-1]
         try:
             token = int(token)
@@ -281,10 +283,12 @@ class ReplacementTokenizer(object):
         return ("index", token)
 
     def var(scanner, token):
+        assert isinstance(token, six.binary_type)
         token = token[:-1]
         return ("var", token)
 
     def tokenize(self, string):
+        assert isinstance(string, six.binary_type)
         return self.scanner.scan(string)[0]
 
     scanner = re.Scanner([(r"\$\w+:", var),
@@ -358,6 +362,8 @@ def sub(request, response, escape_type="html"):
     return response
 
 def template(request, content, escape_type="html"):
+    assert isinstance(content, six.binary_type)
+
     #TODO: There basically isn't any error handling here
     tokenizer = ReplacementTokenizer()
 
@@ -377,16 +383,19 @@ def template(request, content, escape_type="html"):
         assert tokens[0][0] == "ident" and all(item[0] == "index" for item in tokens[1:]), tokens
 
         field = tokens[0][1]
+        assert isinstance(field, six.binary_type)
+
+        assert field != b"host" or field.decode("utf-8") in request.server.config
 
         if field in variables:
             value = variables[field]
-        elif field == "headers":
+        elif field == b"headers":
             value = request.headers
-        elif field == "GET":
+        elif field == b"GET":
             value = FirstWrapper(request.GET)
-        elif field in request.server.config:
-            value = request.server.config[tokens[0][1]]
-        elif field == "location":
+        elif field.decode("utf-8") in request.server.config:
+            value = request.server.config[field.decode("utf-8")]
+        elif field == b"location":
             value = {"server": "%s://%s:%s" % (request.url_parts.scheme,
                                                request.url_parts.hostname,
                                                request.url_parts.port),
@@ -398,9 +407,9 @@ def template(request, content, escape_type="html"):
                      "path": request.url_parts.path,
                      "pathname": request.url_parts.path,
                      "query": "?%s" % request.url_parts.query}
-        elif field == "uuid()":
+        elif field == b"uuid()":
             value = str(uuid.uuid4())
-        elif field == "url_base":
+        elif field == b"url_base":
             value = request.url_base
         else:
             raise Exception("Undefined template variable %s" % field)
@@ -411,6 +420,7 @@ def template(request, content, escape_type="html"):
         assert isinstance(value, (int, six.text_type, six.binary_type)), tokens
 
         if variable is not None:
+            assert isinstance(variable, six.binary_type)
             variables[variable] = value
 
         escape_func = {"html": lambda x:escape(x, quote=True),
@@ -418,9 +428,9 @@ def template(request, content, escape_type="html"):
 
         #Should possibly support escaping for other contexts e.g. script
         #TODO: read the encoding of the response
-        return escape_func(six.text_type(value))
+        return escape_func(six.text_type(value)).encode("utf-8")
 
-    template_regexp = re.compile(r"{{([^}]*)}}")
+    template_regexp = re.compile(br"{{([^}]*)}}")
     new_content = template_regexp.sub(config_replacement, content)
 
     return new_content

@@ -154,6 +154,8 @@ class Response(object):
         cookies = self.headers.get("Set-Cookie")
         parser = Cookie.BaseCookie()
         for cookie in cookies:
+            if six.PY3:
+                cookie = cookie.decode('utf-8')
             parser.load(cookie)
 
         if name in parser.keys():
@@ -223,8 +225,9 @@ class Response(object):
                "message": message}
         data = json.dumps({"error": err})
         self.status = code
-        self.headers = [("Content-Type", "application/json"),
-                        ("Content-Length", len(data))]
+        self.headers = ResponseHeaders()
+        self.headers.update([("Content-Type", "application/json"),
+                             ("Content-Length", len(data))])
         self.content = data
         if code == 500:
             self.logger.error(message)
@@ -282,7 +285,7 @@ class MultipartPart(object):
     def to_bytes(self):
         rv = []
         for (k, v) in self.headers:
-            rv.append(b"%s: %s" % (k.encode('utf-8'), v.encode('utf-8')))
+            rv.append(b"".join([k, b": ", v]))
         rv.append(b"")
         rv.append(self.data)
         return b"\r\n".join(rv)
@@ -293,6 +296,29 @@ class ResponseHeaders(object):
     def __init__(self):
         self.data = OrderedDict()
 
+    @staticmethod
+    def _coerce_key(key):
+        if isinstance(key, six.binary_type):
+            return key
+
+        if isinstance(key, six.text_type):
+            return key.encode("ascii")
+
+        raise ValueError("Unexpected header name %r of type %s" % (key, type(key)))
+
+    @staticmethod
+    def _coerce_value(value):
+        if isinstance(value, six.binary_type):
+            return value
+
+        if isinstance(value, six.text_type):
+            return value.encode("ascii")
+
+        if isinstance(value, six.integer_types):
+            return ("%s" % value).encode("ascii")
+
+        raise ValueError("Unexpected header value %r of type %s" % (value, type(value)))
+
     def set(self, key, value):
         """Set a header to a specific value, overwriting any previous header
         with the same name
@@ -300,6 +326,9 @@ class ResponseHeaders(object):
         :param key: Name of the header to set
         :param value: Value to set the header to
         """
+        key = ResponseHeaders._coerce_key(key)
+        value = ResponseHeaders._coerce_value(value)
+
         self.data[key.lower()] = (key, [value])
 
     def append(self, key, value):
@@ -309,6 +338,9 @@ class ResponseHeaders(object):
         :param key: Name of the header to add
         :param value: Value to set for the header
         """
+        key = ResponseHeaders._coerce_key(key)
+        value = ResponseHeaders._coerce_value(value)
+
         if key.lower() in self.data:
             self.data[key.lower()][1].append(value)
         else:
@@ -316,6 +348,7 @@ class ResponseHeaders(object):
 
     def get(self, key, default=missing):
         """Get the set values for a particular header."""
+        key = ResponseHeaders._coerce_key(key)
         try:
             return self[key]
         except KeyError:
@@ -327,12 +360,18 @@ class ResponseHeaders(object):
         """Get a list of values for a particular header
 
         """
+        key = ResponseHeaders._coerce_key(key)
+
         return self.data[key.lower()][1]
 
     def __delitem__(self, key):
+        key = ResponseHeaders._coerce_key(key)
+
         del self.data[key.lower()]
 
     def __contains__(self, key):
+        key = ResponseHeaders._coerce_key(key)
+
         return key.lower() in self.data
 
     def __setitem__(self, key, value):
@@ -340,7 +379,9 @@ class ResponseHeaders(object):
 
     def __iter__(self):
         for key, values in six.itervalues(self.data):
+            assert isinstance(key, six.binary_type)
             for value in values:
+                assert isinstance(value, six.binary_type)
                 yield key, value
 
     def items(self):
@@ -393,8 +434,11 @@ class ResponseWriter(object):
         :param name: Name of the header field
         :param value: Value of the header field
         """
+        assert isinstance(name, six.binary_type)
+        assert isinstance(value, six.binary_type)
+
         self._headers_seen.add(name.lower())
-        self.write("%s: %s\r\n" % (name, value))
+        self.write(b"".join([name, b": ", value, b"\r\n"]))
         if not self._response.explicit_flush:
             self.flush()
 
@@ -402,12 +446,14 @@ class ResponseWriter(object):
         for name, f in [("Server", self._handler.version_string),
                         ("Date", self._handler.date_time_string)]:
             if name.lower() not in self._headers_seen:
-                self.write_header(name, f())
+                self.write_header(ResponseHeaders._coerce_key(name),
+                                  ResponseHeaders._coerce_value(f()))
 
         if (isinstance(self._response.content, (six.text_type, six.binary_type)) and
             "content-length" not in self._headers_seen):
             #Would be nice to avoid double-encoding here
-            self.write_header("Content-Length", len(self.encode(self._response.content)))
+            self.write_header(ResponseHeaders._coerce_key("Content-Length"),
+                              ResponseHeaders._coerce_value(len(self.encode(self._response.content))))
 
     def end_headers(self):
         """Finish writing headers and write the separator.

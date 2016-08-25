@@ -2,6 +2,7 @@ import base64
 import json
 import os
 import uuid
+import six
 from multiprocessing.managers import BaseManager, DictProxy
 
 class ServerDictManager(BaseManager):
@@ -21,8 +22,10 @@ ClientDictManager.register("get_dict")
 
 class StashServer(object):
     def __init__(self, address=None, authkey=None):
+        assert address is None or isinstance(address, six.text_type)
+        assert isinstance(authkey, six.text_type)
         self.address = address
-        self.authkey = authkey
+        self.authkey = authkey.encode("utf-8")
         self.manager = None
 
     def __enter__(self):
@@ -38,12 +41,12 @@ def load_env_config():
     if isinstance(address, list):
         address = tuple(address)
     else:
-        address = str(address)
-    authkey = base64.decodestring(authkey)
+        assert isinstance(address, six.text_type)
+    authkey = base64.decodestring(authkey.encode('utf-8'))
     return address, authkey
 
 def store_env_config(address, authkey):
-    authkey = base64.encodestring(authkey)
+    authkey = base64.encodestring(authkey).decode("ascii")
     os.environ["WPT_STASH_CONFIG"] = json.dumps((address, authkey))
 
 def start_server(address=None, authkey=None):
@@ -91,7 +94,7 @@ class Stash(object):
             Stash._proxy = {}
 
         if Stash._proxy is None:
-            manager = ClientDictManager(address, authkey)
+            manager = ClientDictManager(str(address), authkey)
             manager.connect()
             Stash._proxy = manager.get_dict()
 

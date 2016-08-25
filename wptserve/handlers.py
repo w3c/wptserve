@@ -3,14 +3,14 @@ import json
 import os
 import traceback
 
-from six import iteritems
+from six import binary_type, iteritems
 from six.moves.urllib.parse import parse_qs, quote, unquote, urljoin
 
 from .constants import content_types
 from .pipes import Pipeline, template
 from .ranges import RangeParser
 from .request import Authentication
-from .response import MultipartContent
+from .response import MultipartContent, ResponseHeaders
 from .utils import HTTPException
 
 __all__ = ["file_handler", "python_script_handler",
@@ -65,7 +65,8 @@ class DirectoryHandler(object):
 
         assert os.path.isdir(path)
 
-        response.headers = [("Content-Type", "text/html")]
+        response.headers = ResponseHeaders()
+        response.headers.set("Content-Type", "text/html")
         response.content = """<!doctype html>
 <meta name="viewport" content="width=device-width">
 <title>Directory listing for %(path)s</title>
@@ -151,7 +152,7 @@ class FileHandler(object):
         rv = (self.load_headers(request, os.path.join(os.path.split(path)[0], "__dir__")) +
               self.load_headers(request, path))
 
-        if not any(key.lower() == "content-type" for (key, _) in rv):
+        if not any(key.lower() == b"content-type" for (key, _) in rv):
             rv.insert(0, ("Content-Type", guess_content_type(path)))
 
         return rv
@@ -165,15 +166,16 @@ class FileHandler(object):
             use_sub = False
 
         try:
-            with open(headers_path) as headers_file:
+            with open(headers_path, 'rb') as headers_file:
                 data = headers_file.read()
         except IOError:
             return []
         else:
             if use_sub:
                 data = template(request, data, escape_type="none")
-            return [tuple(item.strip() for item in line.split(":", 1))
-                    for line in data.splitlines() if line]
+            assert isinstance(data, binary_type)
+            return [tuple(item.strip() for item in line.split(b":", 1))
+                    for line in data.split(b'\n') if line]
 
     def get_data(self, response, path, byte_ranges):
         """Return either the handle to a file, or a string containing
