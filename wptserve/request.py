@@ -1,7 +1,6 @@
 import base64
 import cgi
 import Cookie
-import os
 import StringIO
 import tempfile
 import urlparse

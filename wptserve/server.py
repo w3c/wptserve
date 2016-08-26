@@ -1,7 +1,6 @@
 import BaseHTTPServer
 import errno
 import os
-import re
 import socket
 from SocketServer import ThreadingMixIn
 import ssl

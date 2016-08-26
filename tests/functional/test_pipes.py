@@ -1,10 +1,7 @@
 import os
 import unittest
-import urllib2
-import json
 import time
 
-import wptserve
 from base import TestUsingServer, doc_root
 
 class TestStatus(TestUsingServer):
