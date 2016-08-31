@@ -7,7 +7,7 @@ import uuid
 from six.moves.urllib.error import HTTPError
 
 import wptserve
-from .base import TestUsingServer, doc_root
+from .base import TestUsingServer, check_multiple_headers, doc_root
 
 class TestFileHandler(TestUsingServer):
     def test_GET(self):
@@ -24,7 +24,7 @@ class TestFileHandler(TestUsingServer):
         # This will fail if it isn't a valid uuid
         uuid.UUID(resp.info()["Another-Header"])
         self.assertEqual(resp.info()["Same-Value-Header"], resp.info()["Another-Header"])
-        self.assertEqual(resp.info()["Double-Header"], "PA, SS")
+        self.assertEqual(*check_multiple_headers(resp, "Double-Header", ["PA", "SS"]))
 
 
     def test_range(self):
