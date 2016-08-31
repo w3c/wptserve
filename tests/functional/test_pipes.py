@@ -2,7 +2,7 @@ import os
 import unittest
 import time
 
-from .base import TestUsingServer, doc_root
+from .base import TestUsingServer, check_multiple_headers, doc_root
 
 class TestStatus(TestUsingServer):
     def test_status(self):
@@ -29,7 +29,7 @@ class TestHeader(TestUsingServer):
 
     def test_multiple_append(self):
         resp = self.request("/document.txt", query="pipe=header(X-Test,1)|header(X-Test,2,True)")
-        self.assertEqual(resp.info()["X-Test"], "1, 2")
+        self.assertEqual(*check_multiple_headers(resp, "X-TEST", ["1", "2"]))
 
 class TestSlice(TestUsingServer):
     def test_both_bounds(self):

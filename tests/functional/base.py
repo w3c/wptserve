@@ -5,7 +5,7 @@ import logging
 import os
 import unittest
 
-from six import iteritems
+from six import PY3, iteritems
 from six.moves.urllib.parse import urlencode, urlunsplit
 from six.moves.urllib.request import Request as BaseRequest
 from six.moves.urllib.request import urlopen
@@ -65,3 +65,10 @@ class TestUsingServer(unittest.TestCase):
             req.add_header("Authorization", "Basic %s" % base64.b64encode('%s:%s' % auth))
 
         return urlopen(req)
+
+
+def check_multiple_headers(resp, name, values):
+    if PY3:
+        return resp.info().get_all(name), values
+
+    return resp.info()[name], ", ".join(values)
