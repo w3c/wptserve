@@ -1,11 +1,16 @@
+from __future__ import unicode_literals
+
 import json
 import os
+import pytest
+import six
 import unittest
-import urllib2
 import uuid
 
+from six.moves.urllib.error import HTTPError
+
 import wptserve
-from .base import TestUsingServer, doc_root
+from .base import TestUsingServer, check_multiple_headers, doc_root
 
 class TestFileHandler(TestUsingServer):
     def test_GET(self):
@@ -21,7 +26,7 @@ class TestFileHandler(TestUsingServer):
         # This will fail if it isn't a valid uuid
         uuid.UUID(resp.info()["Another-Header"])
         self.assertEqual(resp.info()["Same-Value-Header"], resp.info()["Another-Header"])
-        self.assertEqual(resp.info()["Double-Header"], "PA, SS")
+        self.assertEqual(*check_multiple_headers(resp, "Double-Header", ["PA", "SS"]))
 
 
     def test_range(self):
@@ -58,26 +63,30 @@ class TestFileHandler(TestUsingServer):
         self.assertEqual(206, resp.getcode())
         data = resp.read()
         expected = open(os.path.join(doc_root, "document.txt"), 'rb').read()
-        self.assertTrue(resp.info()["Content-Type"].startswith("multipart/byteranges; boundary="))
-        boundary = resp.info()["Content-Type"].split("boundary=")[1]
-        parts = data.split("--" + boundary)
-        self.assertEqual("\r\n", parts[0])
-        self.assertEqual("--", parts[-1])
-        expected_parts = [("1-2", expected[1:3]), ("5-10", expected[5:11])]
+
+        content_type = resp.info()["Content-Type"]
+        self.assertTrue(content_type.startswith("multipart/byteranges; boundary="))
+
+        boundary = content_type.split("boundary=")[1].encode('utf-8')
+        parts = data.split(b"--" + boundary)
+
+        self.assertEqual(b"\r\n", parts[0])
+        self.assertEqual(b"--", parts[-1])
+        expected_parts = [(b"1-2", expected[1:3]), (b"5-10", expected[5:11])]
         for expected_part, part in zip(expected_parts, parts[1:-1]):
-            header_string, body = part.split("\r\n\r\n")
-            headers = dict(item.split(": ", 1) for item in header_string.split("\r\n") if item.strip())
-            self.assertEqual(headers["Content-Type"], "text/plain")
-            self.assertEqual(headers["Content-Range"], "bytes %s/%i" % (expected_part[0], len(expected)))
-            self.assertEqual(expected_part[1] + "\r\n", body)
+            header_string, body = part.split(b"\r\n\r\n")
+            headers = dict(item.split(b": ", 1) for item in header_string.split(b"\r\n") if item.strip())
+            self.assertEqual(headers[b"Content-Type"], b"text/plain")
+            self.assertEqual(headers[b"Content-Range"], b"bytes %s/%i" % (expected_part[0], len(expected)))
+            self.assertEqual(expected_part[1] + b"\r\n", body)
 
     def test_range_invalid(self):
-        with self.assertRaises(urllib2.HTTPError) as cm:
+        with self.assertRaises(HTTPError) as cm:
             self.request("/document.txt", headers={"Range":"bytes=11-10"})
         self.assertEqual(cm.exception.code, 416)
 
         expected = open(os.path.join(doc_root, "document.txt"), 'rb').read()
-        with self.assertRaises(urllib2.HTTPError) as cm:
+        with self.assertRaises(HTTPError) as cm:
             self.request("/document.txt", headers={"Range":"bytes=%i-%i" % (len(expected), len(expected) + 10)})
         self.assertEqual(cm.exception.code, 416)
 
@@ -93,7 +102,7 @@ class TestFunctionHandler(TestUsingServer):
         resp = self.request(route[1])
         self.assertEqual(200, resp.getcode())
         self.assertEqual("9", resp.info()["Content-Length"])
-        self.assertEqual("test data", resp.read())
+        self.assertEqual(b"test data", resp.read())
 
     def test_tuple_2_rv(self):
         @wptserve.handlers.handler
@@ -106,7 +115,7 @@ class TestFunctionHandler(TestUsingServer):
         self.assertEqual(200, resp.getcode())
         self.assertEqual("4", resp.info()["Content-Length"])
         self.assertEqual("test-value", resp.info()["test-header"])
-        self.assertEqual("test", resp.read())
+        self.assertEqual(b"test", resp.read())
 
     def test_tuple_3_rv(self):
         @wptserve.handlers.handler
@@ -118,7 +127,7 @@ class TestFunctionHandler(TestUsingServer):
         resp = self.request(route[1])
         self.assertEqual(202, resp.getcode())
         self.assertEqual("test-value", resp.info()["test-header"])
-        self.assertEqual("test data", resp.read())
+        self.assertEqual(b"test data", resp.read())
 
     def test_tuple_3_rv_1(self):
         @wptserve.handlers.handler
@@ -131,7 +140,7 @@ class TestFunctionHandler(TestUsingServer):
         self.assertEqual(202, resp.getcode())
         self.assertEqual("Some Status", resp.msg)
         self.assertEqual("test-value", resp.info()["test-header"])
-        self.assertEqual("test data", resp.read())
+        self.assertEqual(b"test data", resp.read())
 
 class TestJSONHandler(TestUsingServer):
     def test_json_0(self):
@@ -143,7 +152,7 @@ class TestJSONHandler(TestUsingServer):
         self.server.router.register(*route)
         resp = self.request(route[1])
         self.assertEqual(200, resp.getcode())
-        self.assertEqual({"data": "test data"}, json.load(resp))
+        self.assertEqual({"data": "test data"}, json.loads(resp.read().decode('utf-8')))
 
     def test_json_tuple_2(self):
         @wptserve.handlers.json_handler
@@ -155,7 +164,7 @@ class TestJSONHandler(TestUsingServer):
         resp = self.request(route[1])
         self.assertEqual(200, resp.getcode())
         self.assertEqual("test-value", resp.info()["test-header"])
-        self.assertEqual({"data": "test data"}, json.load(resp))
+        self.assertEqual({"data": "test data"}, json.loads(resp.read().decode('utf-8')))
 
     def test_json_tuple_3(self):
         @wptserve.handlers.json_handler
@@ -168,8 +177,9 @@ class TestJSONHandler(TestUsingServer):
         self.assertEqual(202, resp.getcode())
         self.assertEqual("Giraffe", resp.msg)
         self.assertEqual("test-value", resp.info()["test-header"])
-        self.assertEqual({"data": "test data"}, json.load(resp))
+        self.assertEqual({"data": "test data"}, json.loads(resp.read().decode('utf-8')))
 
+@pytest.mark.skipif(six.PY3, reason="Cannot use execfile from python 3")
 class TestPythonHandler(TestUsingServer):
     def test_string(self):
         resp = self.request("/test_string.py")
@@ -205,7 +215,7 @@ class TestAsIsHandler(TestUsingServer):
         self.assertEqual(202, resp.getcode())
         self.assertEqual("Giraffe", resp.msg)
         self.assertEqual("PASS", resp.info()["X-Test"])
-        self.assertEqual("Content", resp.read())
+        self.assertEqual(b"Content", resp.read())
         #Add a check that the response is actually sane
 
 if __name__ == '__main__':
