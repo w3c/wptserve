@@ -1,10 +1,11 @@
 from cgi import escape
 import gzip as gzip_module
 import re
+import six
 import time
 import uuid
-from cStringIO import StringIO
-from six import binary_type, text_type
+from six.moves import cStringIO as StringIO
+
 
 def resolve_content(response):
     return b"".join(item for item in response.iter_content(read_file=True))
@@ -276,7 +277,7 @@ class ReplacementTokenizer(object):
         try:
             token = int(token)
         except ValueError:
-            token = unicode(token, "utf8")
+            token = six.text_type(token, "utf8")
         return ("index", token)
 
     def var(scanner, token):
@@ -407,7 +408,7 @@ def template(request, content, escape_type="html"):
         for item in tokens[1:]:
             value = value[item[1]]
 
-        assert isinstance(value, (binary_type, int, text_type)), tokens
+        assert isinstance(value, (int, six.text_type, six.binary_type)), tokens
 
         if variable is not None:
             variables[variable] = value
@@ -417,7 +418,7 @@ def template(request, content, escape_type="html"):
 
         #Should possibly support escaping for other contexts e.g. script
         #TODO: read the encoding of the response
-        return escape_func(unicode(value)).encode("utf-8")
+        return escape_func(six.text_type(value))
 
     template_regexp = re.compile(r"{{([^}]*)}}")
     new_content = template_regexp.sub(config_replacement, content)

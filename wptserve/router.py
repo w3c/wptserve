@@ -1,6 +1,6 @@
 import itertools
 import re
-from six import binary_type, text_type
+import six
 
 from .logger import get_logger
 
@@ -135,7 +135,7 @@ class Router(object):
                         object and the response object.
 
         """
-        if isinstance(methods, (binary_type, text_type)) or methods is any_method:
+        if isinstance(methods, (six.binary_type, six.text_type)) or methods is any_method:
             methods = [methods]
         for method in methods:
             self.routes.append((method, compile_path_match(path), handler))
