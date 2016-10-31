@@ -1,5 +1,6 @@
 import unittest
 import uuid
+import six
 
 import wptserve
 from wptserve.router import any_method
@@ -8,7 +9,7 @@ from .base import TestUsingServer
 
 class TestResponseSetCookie(TestUsingServer):
     def run(self, result=None):
-        with StashServer(None, authkey=str(uuid.uuid4())):
+        with StashServer(None, authkey=six.text_type(uuid.uuid4())):
             super(TestResponseSetCookie, self).run(result)
 
     def test_put_take(self):
@@ -28,13 +29,13 @@ class TestResponseSetCookie(TestUsingServer):
         self.server.router.register(*route)
 
         resp = self.request(route[1], method="POST", body={"id": id, "data": "Sample data"})
-        self.assertEqual(resp.read(), "OK")
+        self.assertEqual(resp.read(), b"OK")
 
         resp = self.request(route[1], query="id=" + id)
-        self.assertEqual(resp.read(), "Sample data")
+        self.assertEqual(resp.read(), b"Sample data")
 
         resp = self.request(route[1], query="id=" + id)
-        self.assertEqual(resp.read(), "NOT FOUND")
+        self.assertEqual(resp.read(), b"NOT FOUND")
 
 
 if __name__ == '__main__':

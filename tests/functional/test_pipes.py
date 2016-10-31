@@ -50,17 +50,17 @@ class TestSlice(TestUsingServer):
 class TestSub(TestUsingServer):
     def test_sub_config(self):
         resp = self.request("/sub.txt", query="pipe=sub")
-        expected = "localhost localhost %i" % self.server.port
+        expected = b"localhost localhost %i" % self.server.port
         self.assertEqual(resp.read().rstrip(), expected)
 
     def test_sub_headers(self):
         resp = self.request("/sub_headers.txt", query="pipe=sub", headers={"X-Test": "PASS"})
-        expected = "PASS"
+        expected = b"PASS"
         self.assertEqual(resp.read().rstrip(), expected)
 
     def test_sub_params(self):
         resp = self.request("/sub_params.txt", query="test=PASS&pipe=sub")
-        expected = "PASS"
+        expected = b"PASS"
         self.assertEqual(resp.read().rstrip(), expected)
 
 class TestTrickle(TestUsingServer):

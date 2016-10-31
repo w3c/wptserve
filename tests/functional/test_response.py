@@ -1,5 +1,5 @@
 import unittest
-from types import MethodType
+import six
 
 import wptserve
 from .base import TestUsingServer
@@ -15,9 +15,8 @@ class TestResponse(TestUsingServer):
     def test_head_without_body(self):
         @wptserve.handlers.handler
         def handler(request, response):
-            response.writer.end_headers = MethodType(send_body_as_header,
-                                                     response.writer,
-                                                     wptserve.response.ResponseWriter)
+            response.writer.end_headers = six.create_bound_method(send_body_as_header,
+                                                                  response.writer)
             return [("X-Test", "TEST")], "body\r\n"
 
         route = ("GET", "/test/test_head_without_body", handler)
@@ -31,9 +30,8 @@ class TestResponse(TestUsingServer):
         @wptserve.handlers.handler
         def handler(request, response):
             response.send_body_for_head_request = True
-            response.writer.end_headers = MethodType(send_body_as_header,
-                                                     response.writer,
-                                                     wptserve.response.ResponseWriter)
+            response.writer.end_headers = six.create_bound_method(send_body_as_header,
+                                                                  response.writer)
             return [("X-Test", "TEST")], "body\r\n"
 
         route = ("GET", "/test/test_head_with_body", handler)

@@ -27,7 +27,7 @@ class TestResponseSetCookie(TestUsingServer):
         self.server.router.register(*route)
         resp = self.request(route[1])
 
-        self.assertTrue("Set-Cookie" not in resp.info())
+        self.assertFalse("Set-Cookie" in resp.info())
 
     def test_delete(self):
         @wptserve.handlers.handler
