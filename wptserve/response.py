@@ -2,9 +2,9 @@ from collections import OrderedDict
 from datetime import datetime, timedelta
 import Cookie
 import json
-import types
 import uuid
 import socket
+from six import binary_type, text_type
 
 from .constants import response_codes
 from .logger import get_logger
@@ -180,7 +180,7 @@ class Response(object):
         True, the entire content of the file will be returned as a string facilitating
         non-streaming operations like template substitution.
         """
-        if isinstance(self.content, types.StringTypes):
+        if isinstance(self.content, (binary_type, text_type)):
             yield self.content
         elif hasattr(self.content, "read"):
             if read_file:
@@ -424,7 +424,7 @@ class ResponseWriter(object):
 
     def write_content(self, data):
         """Write the body of the response."""
-        if isinstance(data, types.StringTypes):
+        if isinstance(data, (binary_type, text_type)):
             self.write(data)
         else:
             self.write_content_file(data)

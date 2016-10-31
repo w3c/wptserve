@@ -2,10 +2,9 @@ from cgi import escape
 import gzip as gzip_module
 import re
 import time
-import types
 import uuid
 from cStringIO import StringIO
-
+from six import binary_type, text_type
 
 def resolve_content(response):
     return b"".join(item for item in response.iter_content(read_file=True))
@@ -408,7 +407,7 @@ def template(request, content, escape_type="html"):
         for item in tokens[1:]:
             value = value[item[1]]
 
-        assert isinstance(value, (int,) + types.StringTypes), tokens
+        assert isinstance(value, (binary_type, int, text_type)), tokens
 
         if variable is not None:
             variables[variable] = value
