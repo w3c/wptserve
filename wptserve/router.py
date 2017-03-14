@@ -97,11 +97,12 @@ class Router(object):
     def __init__(self, doc_root, routes):
         self.doc_root = doc_root
         self.routes = []
+        self.listing_fixups = []
         self.logger = get_logger()
         for route in reversed(routes):
             self.register(*route)
 
-    def register(self, methods, path, handler):
+    def register(self, methods, path, handler, listing_fixup=None):
         """Register a handler for a set of paths.
 
         :param methods: Set of methods this should match. "*" is a
@@ -130,9 +131,18 @@ class Router(object):
 
                                 {"resource": "test", "*": "data.json"}
 
-        :param handler: Function that will be called to process matching
-                        requests. This must take two parameters, the request
-                        object and the response object.
+        :param handler: Function that will be called to process
+                        matching requests. This must take two
+                        parameters, the request object and the
+                        response object.
+
+        :param listing_fixup: Optional function that takes a request
+                              and a set of names under a particuar
+                              directory and returns an updated set of
+                              names under that directory. Used to fix
+                              up directory listings when a route adds
+                              resources under a path that don't map
+                              directly to a file.
 
         """
         if type(methods) in types.StringTypes or methods in (any_method, "*"):
@@ -140,18 +150,20 @@ class Router(object):
         for method in methods:
             self.routes.append((method, compile_path_match(path), handler))
             self.logger.debug("Route pattern: %s" % self.routes[-1][1].pattern)
+        if listing_fixup is not None:
+            self.listing_fixups.append(listing_fixup)
 
-    def get_handler(self, request):
+    def get_handler(self, request_method, request_path):
         """Get a handler for a request or None if there is no handler.
 
         :param request: Request to get a handler for.
         :rtype: Callable or None
         """
         for method, regexp, handler in reversed(self.routes):
-            if (request.method == method or
+            if (request_method == method or
                 method in (any_method, "*") or
-                (request.method == "HEAD" and method == "GET")):
-                m = regexp.match(request.url_parts.path)
+                (request_method == "HEAD" and method == "GET")):
+                m = regexp.match(request_path)
                 if m:
                     if not hasattr(handler, "__class__"):
                         name = handler.__name__
@@ -162,7 +174,5 @@ class Router(object):
                     match_parts = m.groupdict().copy()
                     if len(match_parts) < len(m.groups()):
                         match_parts["*"] = m.groups()[-1]
-                    request.route_match = match_parts
-
-                    return handler
+                    return match_parts, handler
         return None

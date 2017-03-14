@@ -237,9 +237,11 @@ class Request(object):
     .. attribute:: server
 
     Server object containing information about the server environment.
+
     """
 
     def __init__(self, request_handler):
+        self.router = request_handler.server.router
         self.doc_root = request_handler.server.router.doc_root
         self.route_match = None  # Set by the router
 

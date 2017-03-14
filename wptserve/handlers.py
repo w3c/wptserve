@@ -73,30 +73,34 @@ class DirectoryHandler(object):
 %(items)s
 </ul>
 """ % {"path": cgi.escape(url_path),
-       "items": "\n".join(self.list_items(url_path, path))}  # flake8: noqa
+       "items": "\n".join(self.list_items(request, url_path, path))}  # flake8: noqa
 
-    def list_items(self, base_path, path):
+    def list_items(self, request, base_path, path):
         assert base_path.endswith("/")
-
-        # TODO: this won't actually list all routes, only the
-        # ones that correspond to a real filesystem path. It's
-        # not possible to list every route that will match
-        # something, but it should be possible to at least list the
-        # statically defined ones
 
         if base_path != "/":
             link = urljoin(base_path, "..")
             yield ("""<li class="dir"><a href="%(link)s">%(name)s</a></li>""" %
                    {"link": link, "name": ".."})
-        for item in sorted(os.listdir(path)):
-            link = cgi.escape(quote(item))
-            if os.path.isdir(os.path.join(path, item)):
-                link += "/"
-                class_ = "dir"
-            else:
-                class_ = "file"
-            yield ("""<li class="%(class)s"><a href="%(link)s">%(name)s</a></li>""" %
-                   {"link": link, "name": cgi.escape(item), "class": class_})
+
+        dir_items = set((item, os.path.isdir(os.path.join(path, item))) for item in os.listdir(path))
+        dirs = list(name for name, is_dir in dir_items if is_dir)
+        files = set(name for name, is_dir in dir_items if not is_dir)
+
+        for fn in reversed(request.router.listing_fixups):
+            files = fn(request, files)
+        files = list(files)
+
+        dirs.sort()
+        files.sort()
+
+        template = """<li class="%(class)s"><a href="%(link)s">%(name)s</a></li>"""
+
+        for class_, item_list in [("dir", dirs),
+                                  ("file", files)]:
+            for item in item_list:
+                link = cgi.escape(quote(item))
+                yield template % {"link": link, "name": cgi.escape(item), "class": class_}
 
 
 def wrap_pipeline(path, request, response):
