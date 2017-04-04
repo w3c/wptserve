@@ -230,7 +230,8 @@ class WebTestRequestHandler(BaseHTTPServer.BaseHTTPRequestHandler):
                 return
 
             self.logger.debug("%s %s" % (request.method, request.request_path))
-            handler = self.server.router.get_handler(request)
+            match_parts, handler = self.server.router.get_handler(request.method, request.url_parts.path)
+            request.match_parts = match_parts
 
             # If the handler we used for the request had a non-default base path
             # set update the doc_root of the request to reflect this
