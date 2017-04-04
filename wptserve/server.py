@@ -248,7 +248,13 @@ class WebTestRequestHandler(BaseHTTPServer.BaseHTTPRequestHandler):
                 time.sleep(latency / 1000.)
 
             if handler is None:
-                response.set_error(404)
+                if request.method in ["GET"]:
+                    # Assume no handler means path to a non-existing resource.
+                    response.set_error(404, "Not found")
+                else:
+                    # Using a non-GET method without a dedicated handler is
+                    # considered not allowed. E.g. if requesting files via POST.
+                    response.set_error(405, "Method not allowed")
             else:
                 try:
                     handler(request, response)
