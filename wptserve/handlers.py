@@ -64,7 +64,7 @@ class DirectoryHandler(object):
 
         assert os.path.isdir(path)
 
-        response.headers = [("Content-Type", "text/html")]
+        response.headers.set("Content-Type", "text/html")
         response.content = """<!doctype html>
 <meta name="viewport" content="width=device-width">
 <title>Directory listing for %(path)s</title>

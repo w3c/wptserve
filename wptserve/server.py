@@ -249,18 +249,25 @@ class WebTestRequestHandler(BaseHTTPServer.BaseHTTPRequestHandler):
 
             if handler is None:
                 response.set_error(404)
-            else:
-                try:
-                    handler(request, response)
-                except HTTPException as e:
-                    response.set_error(e.code, e.message)
-                except Exception as e:
-                    if e.message:
-                        err = [e.message]
-                    else:
-                        err = []
-                    err.append(traceback.format_exc())
-                    response.set_error(500, "\n".join(err))
+                response.write()
+                return
+
+            # Set any default headers before calling the handler, so that any headers
+            # set in the handler will overwrite the defaults.
+            if "default_headers" in Server.config and Server.config["default_headers"]:
+                response.headers.update(Server.config["default_headers"])
+
+            try:
+                handler(request, response)
+            except HTTPException as e:
+                response.set_error(e.code, e.message)
+            except Exception as e:
+                if e.message:
+                    err = [e.message]
+                else:
+                    err = []
+                err.append(traceback.format_exc())
+                response.set_error(500, "\n".join(err))
             self.logger.debug("%i %s %s (%s) %i" % (response.status[0],
                                                     request.method,
                                                     request.request_path,
